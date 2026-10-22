@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 — Connect to Liara (read-only)
-- **Live / working:** `uv run starcoach version`; offline tests (4 pass); JSONL event log.
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits` (offline-tested; not yet run against the real API: needs the token). 9 offline tests pass.
 
 ### What we need from the user
 
@@ -67,3 +67,25 @@ Not done yet:
 
 Next change idea:
 - A Liara HTTP client and `starcoach check`.
+
+### Change 2 — Liara API client and read-only commands (check, apps, status, limits) — 2026-10-22
+Phase: 1, steps 1–5
+How to see it: `uv run starcoach limits` (no token needed); `uv run starcoach check` (needs `LIARA_API_TOKEN`)
+Proof it works: `pytest -q`: 9 passed, offline. `starcoach check` without a token prints `error: No Liara token. Set LIARA_API_TOKEN in .env.` and exits 2. `starcoach limits` prints English and Persian lines. Not yet run against the real API: the token is not in `.env` yet.
+
+Research: 02 (deploy) and 03 (logs/metrics) are in. Checked the base URL in the CLI source and on the real hosts: F4.
+Questions: none
+Decisions: D5, F2, F4
+
+Shipped:
+- `liara.py`: stdlib client, swappable transport, GET retry on 429/5xx, no retry on POST, plain-language errors, calls logged without secrets.
+- `limits.py`: 7 known API limits, English and Persian.
+- CLI: `check`, `apps`, `status <app>`, `limits`. API errors exit 2 with one clear line.
+- Fix: UTF-8 stdout, so Persian prints on the Windows console (it crashed with `charmap`).
+
+Not done yet:
+- Real-API proof for `check`/`apps`/`status`: waiting for the token.
+- Research files 01, 04, 05, 06 and `docs/research/00-index.md` are not finished.
+
+Next change idea:
+- Write the research index. Then do the Phase 2 thin agent, using a fake LLM in tests.

@@ -23,3 +23,4 @@ Rules:
 | F1 | The Liara Iran API is reachable from the dev machine. Without a token it returns 401. | `GET https://api.iran.liara.ir/v1/projects` → 401 `{"error":"Unauthorized."}` | 2026-10-22 | `python -c "urllib.request.urlopen(...)"` |
 | F2 | The dev machine uses an HTTPS proxy. curl/schannel fails the TLS revocation check through it. Python works. | `https_proxy=http://127.0.0.1:10808`; curl exit 35 `CRYPT_E_REVOCATION_OFFLINE` | 2026-10-22 | `curl -sv https://api.iran.liara.ir/v1/projects` |
 | F3 | The installed Liara CLI is broken on the dev machine. We do not depend on it. | `Cannot find module ...@liara\cli\bin\run.js` | 2026-10-22 | `liara --version` |
+| F4 | The official CLI uses `https://api.liara.ir` for the Iran region. `api.iran.liara.ir` also answers. We default to `api.liara.ir`. | both return 401 to `GET /v1/me` without a token | 2026-10-22 | liara-cloud/cli@14ec35f:src/constants.ts:11; `urllib.request.urlopen` on both hosts |

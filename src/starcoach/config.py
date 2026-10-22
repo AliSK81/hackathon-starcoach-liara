@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SECRET_NAMES = ("LIARA_API_TOKEN", "LLM_API_KEY")
-DEFAULT_LIARA_API_URL = "https://api.iran.liara.ir"
+DEFAULT_LIARA_API_URL = "https://api.liara.ir"  # F4
 
 
 def read_env_file(path: Path) -> dict[str, str]:

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
-from . import __version__
+from . import __version__, observe
 from .config import load_settings
 from .eventlog import EventLog
 from .agent import Agent
@@ -139,6 +140,56 @@ def cmd_deploy(args, settings, log) -> int:
     return 3
 
 
+def _fmt_time(ts: float) -> str:
+    return time.strftime("%H:%M:%S", time.localtime(ts)) if ts else "--:--:--"
+
+
+def cmd_logs(args, settings, log) -> int:
+    lines = observe.get_logs(_client(settings, log), args.app, args.minutes, args.errors, args.limit)
+    if not lines:
+        print(f"No logs in the last {args.minutes} minutes.")
+    for l in lines:
+        mark = "!" if l["type"] == "stderr" else " "
+        print(f"{_fmt_time(l['ts'])} {mark} {l['text'][:300]}")
+    return 0
+
+
+def cmd_events(args, settings, log) -> int:
+    events = observe.get_events(_client(settings, log), args.app, args.minutes)
+    if not events:
+        print("No events.")
+    for e in events:
+        print(f"{_fmt_time(e['ts'])}  {e['text'][:300]}")
+    return 0
+
+
+def cmd_metrics(args, settings, log) -> int:
+    m = observe.get_metrics(_client(settings, log), args.app, args.minutes)
+    log.write("result", command="metrics", metrics=m)
+    lim = m["limits"]
+    print(f"Plan {lim['plan']}: {lim['cpu_cores']} CPU cores, {lim['ram_gb']} GB RAM. Last {m['minutes']} min:")
+    for s in m["cpu"]:
+        print(f"  CPU  {s['instance']}: last {s['last']:.3f}  max {s['max']:.3f}"
+              + (f"  ({s['max_pct_of_limit']}% of limit)" if "max_pct_of_limit" in s else ""))
+    for s in m["memory"]:
+        print(f"  RAM  {s['instance']}: last {s['last_mb']} MB  max {s['max_mb']} MB"
+              + (f"  ({s['max_pct_of_limit']}% of limit)" if "max_pct_of_limit" in s else ""))
+    if not (m["cpu"] or m["memory"]):
+        print("  No metric data (the app may be off or new).")
+    print(f"  note: {m['units_note']}")
+    return 0
+
+
+def cmd_health(args, settings, log) -> int:
+    r = observe.probe(observe.app_url(args.target), tries=args.tries).to_dict()
+    log.write("result", command="health", probe=r)
+    print(f"{r['url']}: {int(r['ok_ratio'] * 100)}% OK over {r['tries']} tries, "
+          f"p50 {r['p50_ms']} ms, max {r['max_ms']} ms, statuses {r['statuses']}")
+    for e in r["errors"][:3]:
+        print(f"  ❌ {e}")
+    return 0 if r["ok_ratio"] == 1 else 4
+
+
 def cmd_limits(args, settings, log) -> int:
     for lim in by_topic(args.topic):
         print(f"[{lim.topic}] {lim.en}\n    {lim.fa}")
@@ -226,6 +277,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--message", default="")
     p.add_argument("--yes", action="store_true", help="skip the question")
     p.set_defaults(func=cmd_deploy)
+    p = sub.add_parser("logs", help="recent app logs")
+    p.add_argument("app")
+    p.add_argument("--minutes", type=int, default=30)
+    p.add_argument("--errors", action="store_true", help="only error-looking lines")
+    p.add_argument("--limit", type=int, default=200)
+    p.set_defaults(func=cmd_logs)
+    p = sub.add_parser("events", help="app events (restarts, kills, high RAM)")
+    p.add_argument("app")
+    p.add_argument("--minutes", type=int, default=24 * 60)
+    p.set_defaults(func=cmd_events)
+    p = sub.add_parser("metrics", help="CPU and RAM against the plan limits")
+    p.add_argument("app")
+    p.add_argument("--minutes", type=int, default=30)
+    p.set_defaults(func=cmd_metrics)
+    p = sub.add_parser("health", help="probe the site URL: status codes and latency")
+    p.add_argument("target", help="app name or URL")
+    p.add_argument("--tries", type=int, default=5)
+    p.set_defaults(func=cmd_health)
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)

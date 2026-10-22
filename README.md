@@ -31,6 +31,10 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach recommend [dir]` | suggest platform, port and plan for a project folder |
 | `uv run starcoach create <name> --platform P --plan ID --bundle B` | create an app (asks first; costs money) |
 | `uv run starcoach deploy <dir> --app <name>` | upload and release a folder, show build progress (asks first) |
+| `uv run starcoach logs <app> [--minutes N] [--errors]` | recent logs (errors only with `--errors`) |
+| `uv run starcoach events <app>` | app events: restarts, kills, high RAM |
+| `uv run starcoach metrics <app>` | CPU and RAM against the plan limits |
+| `uv run starcoach health <app or URL> [--tries N]` | probe the site: status codes and latency |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
 | `uv run starcoach chat` | talk to the assistant (Persian or English) |
 | `uv run starcoach chat --once "..."` | ask one question and exit |

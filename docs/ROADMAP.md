@@ -29,7 +29,7 @@
 | 1 | Connect to Liara (read-only) | in progress | [phase-1](phases/phase-1-connect.md) |
 | 2 | Thin agent: chat that calls read-only tools | in progress | [phase-2](phases/phase-2-agent.md) |
 | 3 | Deploy: recommend, create, deploy, release status | in progress | [phase-3](phases/phase-3-deploy.md) |
-| 4 | Observe: logs, metrics, health probe | not started | — |
+| 4 | Observe: logs, metrics, health probe | in progress | [phase-4](phases/phase-4-observe.md) |
 | 5 | Diagnose and fix, with approval and re-check | not started | — |
 | 6 | Web chat UI: approval cards and status | not started | — |
 | 7 | Automation: watch loop, domain guide | not started | — |

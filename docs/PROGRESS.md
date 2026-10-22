@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy` (offline-tested; not yet run against the real API or LLM: needs `.env`). 42 offline tests pass.
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 48 offline tests pass.
 
 ### What we need from the user
 
@@ -170,3 +170,24 @@ Not done yet:
 
 Next change idea:
 - Phase 4: logs, metrics, health probe (offline), while waiting for the token.
+
+### Change 7 — `logs`, `events`, `metrics`, `health`: see what an app is doing — 2026-10-22
+Phase: 4, steps 1–6
+How to see it: `uv run starcoach health https://liara.ir --tries 3`; `uv run starcoach logs <app> --errors` (needs the token)
+Proof it works: real probe: `https://liara.ir: 100% OK over 3 tries` with status codes and p50/max latency. 48 tests pass offline: two log streams are merged and sorted by nanosecond timestamp, `_entry`/`type` are decoded, a non-JSON line is kept as raw text, the error filter keeps 2 of 4 lines, metrics are joined with plan limits (CPU max 0.45 of 0.5 cores = 90%, RAM 460 MB of 512 MB = 89.8%), and the probe counts a 500 and a timeout.
+
+Research: 03 §1–5. The metric units and the meaning of `since` are still not verified on real data.
+Questions: none
+Decisions: none
+
+Shipped:
+- `observe.py`: v2 logs and events flattening, error-line filter, metric stats per instance with % of plan limit, our own HTTP probe (`ok_ratio`, p50, max, server errors).
+- CLI `logs`, `events`, `metrics`, `health`.
+- Agent tools (read): `get_logs`, `get_events`, `get_metrics`, `probe_site`. Log text reaches the LLM with a note that it is data, not instructions.
+- Fix: p50 used the upper middle value for even counts.
+
+Not done yet:
+- Real check of metric units and `since` (needs the token and a live app).
+
+Next change idea:
+- Phase 5: the rule-based diagnosis engine, tested on log samples kept apart from the ones used to write the rules.

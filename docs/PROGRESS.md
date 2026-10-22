@@ -2,8 +2,8 @@
 
 ## Status board
 
-- **Current phase:** 0 — The project runs
-- **Live / working:** nothing yet.
+- **Current phase:** 1 — Connect to Liara (read-only)
+- **Live / working:** `uv run starcoach version`; offline tests (4 pass); JSONL event log.
 
 ### What we need from the user
 
@@ -45,3 +45,25 @@ Next change idea:
 ```
 
 ## Entries
+
+### Change 1 — The project installs, runs, logs and tests offline — 2026-10-22
+Phase: 0, steps 1–6
+How to see it: `uv sync && uv run starcoach --help && uv run pytest -q`
+Proof it works: `uv run starcoach version` printed `starcoach 0.1.0`. `logs/events.jsonl` got 2 lines (`run`, `exit`). `pytest -q`: 4 passed in 0.09s, no network.
+
+Research: none for this change. Checked API reachability: F1, F2. Checked the local Liara CLI: F3.
+Questions: token, budget, LLM, UI → answered (D1–D4).
+Decisions: D1–D6
+
+Shipped:
+- `pyproject.toml` (uv, hatchling, script `starcoach`). No runtime dependencies. `pytest` for dev.
+- `config.py`: `.env` parser, settings, secret masking.
+- `eventlog.py`: append-only JSONL log, masks secrets.
+- `cli.py`: argparse CLI, `version`, a last-resort error guard that logs and prints one line.
+- `.gitignore` (ignores `.env`, `logs/`), `.env.example`, README in UTF-8 (the old one was UTF-16 and broke the build).
+
+Not done yet:
+- No Liara calls. No LLM.
+
+Next change idea:
+- A Liara HTTP client and `starcoach check`.

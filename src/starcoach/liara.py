@@ -138,9 +138,26 @@ class LiaraClient:
     def applets(self, name: str):
         return self.request("GET", f"/v1/projects/{_q(name)}/applets")
 
+    def networks(self) -> list[dict]:
+        return self.request("GET", "/v1/networks").get("networks", [])
+
     # --- changes (the agent asks the user first) ---
     def restart(self, name: str) -> dict:
         return self.request("POST", f"/v1/projects/{_q(name)}/actions/restart")
+
+    def create_app(self, name: str, platform: str, plan_id: str, bundle_plan_id: str,
+                   network: str | None = None) -> dict:
+        """POST /v1/projects. Body as the CLI sends it (cli@14ec35f:src/commands/app/create.ts:80-88).
+        A network is required; we use the named one or the first one."""
+        nets = self.networks()
+        chosen = next((n for n in nets if n.get("name") == network), None) if network else (nets[0] if nets else None)
+        if chosen is None:
+            raise LiaraError("No private network found. Create one in the Liara console (Networks), then try again.")
+        body = {"name": name, "planID": plan_id, "platform": platform,
+                "bundlePlanID": bundle_plan_id, "network": chosen.get("_id")}
+        self.request("POST", "/v1/projects", body=body)
+        return {"name": name, "platform": platform, "plan": plan_id, "bundle": bundle_plan_id,
+                "network": chosen.get("name")}
 
 
 def _q(name: str) -> str:

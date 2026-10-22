@@ -15,9 +15,9 @@ From a project folder to a live Liara app: recommend, create, deploy, report.
 ## Checklist
 - [x] `starcoach recommend <dir>`: platform, port, checks, resource class
 - [x] plan pick from `/v1/me` plans
-- [ ] packer with ignore rules
-- [ ] `starcoach deploy <dir> --app <name>` with build progress and final state
-- [ ] `starcoach create <name> --platform P --plan ID`
-- [ ] agent tools: `recommend_setup`, `create_app`, `deploy_app`, `release_status`
+- [x] packer with ignore rules
+- [x] `starcoach deploy <dir> --app <name>` with build progress and final state
+- [x] `starcoach create <name> --platform P --plan ID`
+- [x] agent tools: `recommend_setup`, `create_app`, `deploy_app`, `release_status`
 - [x] demo app in `examples/`
 - [ ] real deploy answers HTTP 200

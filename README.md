@@ -29,6 +29,8 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach apps` | list your Liara apps |
 | `uv run starcoach status <app>` | one app's state and instances |
 | `uv run starcoach recommend [dir]` | suggest platform, port and plan for a project folder |
+| `uv run starcoach create <name> --platform P --plan ID --bundle B` | create an app (asks first; costs money) |
+| `uv run starcoach deploy <dir> --app <name>` | upload and release a folder, show build progress (asks first) |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
 | `uv run starcoach chat` | talk to the assistant (Persian or English) |
 | `uv run starcoach chat --once "..."` | ask one question and exit |

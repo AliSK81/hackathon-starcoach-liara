@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend` (offline-tested; not yet run against the real API or LLM: needs `.env`). 35 offline tests pass.
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy` (offline-tested; not yet run against the real API or LLM: needs `.env`). 42 offline tests pass.
 
 ### What we need from the user
 
@@ -149,3 +149,24 @@ Not done yet:
 
 Next change idea:
 - Packer (tar.gz with ignore rules), then `deploy`.
+
+### Change 6 — `starcoach deploy` and `create` work through the API, no Liara CLI — 2026-10-22
+Phase: 3, steps 3–6
+How to see it: `uv run starcoach deploy examples/demo-node --app <name>` (needs the token and an app)
+Proof it works: 42 tests pass offline. A fake Liara API checks the whole flow: `GET /v1/projects/shop` → multipart upload to `/v2/projects/shop/sources` → `/v2/projects/shop/releases` with `sourceID`, `port` 3000, `type` node → 3 build-log polls → `READY`. Also checked: `FAILED` gives its `failReason`; a stopped app is refused; the packer drops `.env`, `.env.local`, `node_modules`, `.git` and `.gitignore` patterns, and keeps `.env.example`. Not yet run on the real API.
+
+Research: 02 §2–3 (flow, states, ignore rules). New fact: app create needs a network (F5).
+Questions: none
+Decisions: D2 (the `starcoach-` prefix is forced on created apps), F5
+
+Shipped:
+- `deploy.py`: packer (tar.gz, CLI fixed ignore list plus all `.env*`, root `.liaraignore` > `.dockerignore` > `.gitignore`), multipart builder, `Deployer` with progress events, and the final state, fail reason, stderr lines and last log lines.
+- `LiaraClient.create_app` (picks the network), `networks()`.
+- CLI `create` and `deploy`, both ask first (`--yes` skips the question).
+- Agent tools: `recommend_setup`, `release_status` (read); `create_app`, `deploy_app` (change). Deploy progress shows in chat.
+
+Not done yet:
+- Real deploy. Ignore-file negation (`!pattern`) is not supported. Nested ignore files are not read.
+
+Next change idea:
+- Phase 4: logs, metrics, health probe (offline), while waiting for the token.

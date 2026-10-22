@@ -14,7 +14,8 @@ from .liara import LiaraClient, LiaraError
 from .limits import by_topic
 from .llm import ChatLLM, LLMError
 from .recommend import recommend
-from .tools import build_tools
+from .deploy import Deployer
+from .tools import APP_PREFIX, build_tools
 
 
 def cmd_version(args, settings, log) -> int:
@@ -89,6 +90,55 @@ def cmd_recommend(args, settings, log) -> int:
     return 0
 
 
+def confirm(question: str, assume_yes: bool) -> bool:
+    if assume_yes:
+        return True
+    return input(f"{question} Type yes / بله: ").strip().lower() in ("y", "yes", "بله", "آره")
+
+
+def cmd_create(args, settings, log) -> int:
+    name = args.name if args.name.startswith(APP_PREFIX) else APP_PREFIX + args.name
+    if not confirm(f"Create app {name} ({args.platform}, plan {args.plan}, bundle {args.bundle})? "
+                   "It costs money every hour.", args.yes):
+        log.write("rejected", command="create", app=name)
+        print("Not created.")
+        return 1
+    result = _client(settings, log).create_app(name, args.platform, args.plan, args.bundle, args.network)
+    log.write("result", command="create", result=result)
+    print(f"Created {name} on network {result['network']}.")
+    return 0
+
+
+def print_deploy_event(kind, data):
+    if kind == "packed":
+        print(f"  📦 packed {data['files']} files ({data['size_kb']} KB)")
+    elif kind == "uploaded":
+        print("  ⬆️  uploaded")
+    elif kind == "release_created":
+        print(f"  🚀 release {data['release_id']} ({data['platform']}, port {data['port']})")
+    elif kind == "state":
+        print(f"  ⏳ state: {data['state']}")
+    elif kind == "build_log":
+        for line in data["lines"]:
+            print(f"     {line[:160]}")
+
+
+def cmd_deploy(args, settings, log) -> int:
+    if not confirm(f"Deploy {args.dir} to {args.app}? This replaces the live version.", args.yes):
+        print("Not deployed.")
+        return 1
+    result = Deployer(_client(settings, log), on_event=print_deploy_event).deploy(
+        Path(args.dir), args.app, port=args.port, message=args.message)
+    log.write("result", command="deploy", result=result.to_dict())
+    if result.ok:
+        print(f"✅ Live: {result.url} ({result.seconds}s)")
+        return 0
+    print(f"❌ Deploy ended in state {result.state or 'unknown'}. {result.fail_reason}")
+    for line in (result.error_lines or result.last_lines)[-10:]:
+        print(f"   {line}")
+    return 3
+
+
 def cmd_limits(args, settings, log) -> int:
     for lim in by_topic(args.topic):
         print(f"[{lim.topic}] {lim.en}\n    {lim.fa}")
@@ -112,7 +162,7 @@ def terminal_approver(tool, args) -> bool:
 
 def make_agent(settings, log, approver=terminal_approver, on_event=None):
     llm = ChatLLM(settings.llm_base_url, settings.llm_model, settings.llm_api_key, log=log)
-    tools = build_tools(_client(settings, log))
+    tools = build_tools(_client(settings, log), on_event=on_event)
     return Agent(llm, tools, approver, on_event=on_event, log=log)
 
 
@@ -120,6 +170,8 @@ def cmd_chat(args, settings, log) -> int:
     def show(kind, data):
         if kind in STATUS_LINES:
             print(STATUS_LINES[kind](data))
+        else:
+            print_deploy_event(kind, data)
 
     agent = make_agent(settings, log, on_event=show)
     if args.once:
@@ -159,6 +211,21 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("recommend", help="look at a project folder and suggest platform, port and plan")
     p.add_argument("dir", nargs="?", default=".")
     p.set_defaults(func=cmd_recommend)
+    p = sub.add_parser("create", help="create a Liara app (asks first; costs money)")
+    p.add_argument("name")
+    p.add_argument("--platform", required=True)
+    p.add_argument("--plan", required=True)
+    p.add_argument("--bundle", required=True, help="feature bundle plan id")
+    p.add_argument("--network", default=None)
+    p.add_argument("--yes", action="store_true", help="skip the question")
+    p.set_defaults(func=cmd_create)
+    p = sub.add_parser("deploy", help="upload a folder and release it (asks first)")
+    p.add_argument("dir")
+    p.add_argument("--app", required=True)
+    p.add_argument("--port", type=int, default=None)
+    p.add_argument("--message", default="")
+    p.add_argument("--yes", action="store_true", help="skip the question")
+    p.set_defaults(func=cmd_deploy)
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)

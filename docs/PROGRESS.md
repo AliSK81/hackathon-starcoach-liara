@@ -277,3 +277,21 @@ Not done yet:
 
 Next change idea:
 - The reviewer doc (phase 8).
+
+### Change 12 — Reviewer doc `docs/SOLUTION.md` — 2026-10-22
+Phase: 8, step 1
+How to see it: open `docs/SOLUTION.md`
+Proof it works: it covers every item that requirements.md asks of the MD document: architecture (diagram plus layers plus reasons), how we connect to the Liara API (auth, endpoints, security), limits (Liara's and ours), how the user interacts (web, terminal, risk tiers), and results with numbers (eval table with the honest first runs, test count).
+
+Research: none new.
+Questions: none
+Decisions: none
+
+Shipped:
+- `docs/SOLUTION.md`, linked from the README.
+
+Not done yet:
+- The real-run results section waits for the token.
+
+Next change idea:
+- When `.env` arrives: `check`, deploy the demo app, run the real scenario, and record facts.

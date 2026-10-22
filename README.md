@@ -66,6 +66,7 @@ uvx ruff check src tests
 
 ## Docs
 
+- [Solution overview for reviewers](docs/SOLUTION.md): architecture, Liara API, limits, interaction, results
 - [Roadmap](docs/ROADMAP.md)
 - [Progress](docs/PROGRESS.md)
 - [Decisions and facts](docs/DECISIONS.md)

@@ -2,8 +2,8 @@
 
 ## Status board
 
-- **Current phase:** 1 — Connect to Liara (read-only)
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits` (offline-tested; not yet run against the real API: needs the token). 9 offline tests pass.
+- **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat` (offline-tested; not yet run against the real API or LLM: needs `.env`). 19 offline tests pass.
 
 ### What we need from the user
 
@@ -107,3 +107,25 @@ Not done yet:
 
 Next change idea:
 - Research index, then the Phase 2 thin agent.
+
+### Change 4 — Thin agent: `starcoach chat` with a risk gate and status lines — 2026-10-22
+Phase: 2, steps 1–5
+How to see it: `uv run starcoach chat` (needs `.env`); `uv run pytest -q tests/test_agent.py`
+Proof it works: 19 tests pass offline. The scripted-LLM tests show: a read tool runs with no approval; `restart_app` runs only after yes; on no, Liara gets no POST and the LLM sees `rejected`; a 404 goes back to the LLM as an error; env var values never reach the LLM (only names). Without `.env`, `chat --once hi` prints one clean line and exits 2.
+
+Research: 01 (restart endpoint `POST /v1/projects/{name}/actions/restart`). 05 not finished; the loop uses the standard OpenAI tool-calling shape.
+Questions: none
+Decisions: D3, D6
+
+Shipped:
+- `llm.py`: OpenAI-compatible chat client, stdlib HTTP.
+- `tools.py`: tool registry with risk tiers. Read: `list_apps`, `app_status`, `api_limits`. Change: `restart_app`.
+- `agent.py`: loop, max 8 rounds, approval callback, events to the screen and to the JSONL log. A Persian-first system prompt.
+- CLI `chat` (REPL and `--once`). Terminal approval accepts yes / بله.
+- Fix: the CLI error guard crashed on `LLMError` (no `status`). It now has a test.
+
+Not done yet:
+- No real LLM run yet (needs LLM settings in `.env`).
+
+Next change idea:
+- Phase 3: `starcoach recommend <dir>` (platform detection and plan suggestion).

@@ -27,7 +27,7 @@
 |---|---|---|---|
 | 0 | The project runs | done | [phase-0](phases/phase-0-runs.md) |
 | 1 | Connect to Liara (read-only) | in progress | [phase-1](phases/phase-1-connect.md) |
-| 2 | Thin agent: chat that calls read-only tools | not started | — |
+| 2 | Thin agent: chat that calls read-only tools | in progress | [phase-2](phases/phase-2-agent.md) |
 | 3 | Deploy: recommend, create, deploy, release status | not started | — |
 | 4 | Observe: logs, metrics, health probe | not started | — |
 | 5 | Diagnose and fix, with approval and re-check | not started | — |

@@ -8,8 +8,11 @@ import sys
 from . import __version__
 from .config import load_settings
 from .eventlog import EventLog
+from .agent import Agent
 from .liara import LiaraClient, LiaraError
 from .limits import by_topic
+from .llm import ChatLLM, LLMError
+from .tools import build_tools
 
 
 def cmd_version(args, settings, log) -> int:
@@ -60,6 +63,52 @@ def cmd_limits(args, settings, log) -> int:
     return 0
 
 
+STATUS_LINES = {
+    "tool_start": lambda d: f"  ⏳ running {d['tool']} {d.get('args') or ''}",
+    "tool_done": lambda d: f"  ✅ {d['tool']} done",
+    "error": lambda d: f"  ❌ {d.get('tool', '')}: {d['error']}",
+    "approval_needed": lambda d: f"  ⚠️  {d['tool']} needs your approval (risk: {d['risk']}) {d.get('args') or ''}",
+    "approved": lambda d: f"  👍 approved: {d['tool']}",
+    "rejected": lambda d: f"  ✋ not run: {d['tool']}",
+}
+
+
+def terminal_approver(tool, args) -> bool:
+    answer = input(f"  Run {tool.name} {args}? Type yes / بله to approve: ").strip().lower()
+    return answer in ("y", "yes", "بله", "آره", "ok")
+
+
+def make_agent(settings, log, approver=terminal_approver, on_event=None):
+    llm = ChatLLM(settings.llm_base_url, settings.llm_model, settings.llm_api_key, log=log)
+    tools = build_tools(_client(settings, log))
+    return Agent(llm, tools, approver, on_event=on_event, log=log)
+
+
+def cmd_chat(args, settings, log) -> int:
+    def show(kind, data):
+        if kind in STATUS_LINES:
+            print(STATUS_LINES[kind](data))
+
+    agent = make_agent(settings, log, on_event=show)
+    if args.once:
+        print(agent.ask(args.once))
+        return 0
+    print("StarCoach — ask about your Liara apps. Empty line to quit. (سؤال خود را بنویسید)")
+    while True:
+        try:
+            text = input("> ").strip()
+        except EOFError:
+            break
+        if not text:
+            break
+        try:
+            print(agent.ask(text))
+        except LLMError as exc:
+            log.write("error", command="chat", error=str(exc))
+            print(f"error: {exc}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="starcoach",
@@ -78,6 +127,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)
+    p = sub.add_parser("chat", help="talk to the assistant (Persian or English)")
+    p.add_argument("--once", metavar="TEXT", help="ask one question and exit")
+    p.set_defaults(func=cmd_chat)
     return parser
 
 
@@ -97,8 +149,8 @@ def main(argv: list[str] | None = None) -> int:
         code = args.func(args, settings, log)
     except KeyboardInterrupt:
         code = 130
-    except LiaraError as exc:
-        log.write("error", command=args.command, status=exc.status, error=str(exc))
+    except (LiaraError, LLMError) as exc:
+        log.write("error", command=args.command, status=getattr(exc, "status", 0), error=str(exc))
         print(f"error: {exc}", file=sys.stderr)
         code = 2
     except Exception as exc:  # last-resort guard: log it, show one clean line

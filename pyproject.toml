@@ -21,3 +21,4 @@ packages = ["src/starcoach"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]

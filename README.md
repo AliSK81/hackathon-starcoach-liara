@@ -29,6 +29,8 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach apps` | list your Liara apps |
 | `uv run starcoach status <app>` | one app's state and instances |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
+| `uv run starcoach chat` | talk to the assistant (Persian or English) |
+| `uv run starcoach chat --once "..."` | ask one question and exit |
 
 Every run appends events to `logs/events.jsonl`. Secrets are masked there.
 

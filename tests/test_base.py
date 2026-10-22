@@ -14,6 +14,17 @@ def test_version_runs_and_logs(tmp_path, monkeypatch, capsys):
     assert kinds == ["run", "exit"]
 
 
+def test_missing_config_gives_one_clean_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("STARCOACH_LOG", str(tmp_path / "e.jsonl"))
+    monkeypatch.chdir(tmp_path)
+    for name in ("LLM_BASE_URL", "LLM_MODEL", "LIARA_API_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    assert cli.main(["chat", "--once", "hi"]) == 2
+    assert "LLM_BASE_URL" in capsys.readouterr().err
+    assert cli.main(["apps"]) == 2
+    assert "LIARA_API_TOKEN" in capsys.readouterr().err
+
+
 def test_env_file_parsing(tmp_path):
     env = tmp_path / ".env"
     env.write_text('# c\nLIARA_API_TOKEN="abc"\n\nLLM_MODEL=m\nbad line\n', encoding="utf-8")

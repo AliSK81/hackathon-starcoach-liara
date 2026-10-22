@@ -134,6 +134,10 @@ class LiaraClient:
     def applets(self, name: str):
         return self.request("GET", f"/v1/projects/{_q(name)}/applets")
 
+    # --- changes (the agent asks the user first) ---
+    def restart(self, name: str) -> dict:
+        return self.request("POST", f"/v1/projects/{_q(name)}/actions/restart")
+
 
 def _q(name: str) -> str:
     return urllib.parse.quote(name, safe="")

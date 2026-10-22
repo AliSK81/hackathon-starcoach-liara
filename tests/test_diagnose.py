@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from fakes import FakeLiara, ScriptedLLM, call
 
 from starcoach.agent import Agent
@@ -104,11 +105,8 @@ def test_set_env_merges_and_dedupes():
 
 def test_set_env_refuses_when_encrypted_envs_exist():
     api = EnvAPI([{"key": "SECRET", "value": "****", "encrypted": True}])
-    try:
+    with pytest.raises(LiaraError, match="encrypted"):
         LiaraClient("tok", "https://api.test", transport=api).set_env("shop", "X", "1")
-        assert False, "should refuse"
-    except LiaraError as e:
-        assert "encrypted" in str(e)
     assert ("POST", "/v1/projects/update-envs") not in api.calls
 
 

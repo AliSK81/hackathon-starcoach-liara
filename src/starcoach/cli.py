@@ -8,14 +8,14 @@ import time
 from pathlib import Path
 
 from . import __version__, observe
-from .config import load_settings
-from .eventlog import EventLog
 from .agent import Agent
+from .config import load_settings
+from .deploy import Deployer
+from .eventlog import EventLog
 from .liara import LiaraClient, LiaraError
 from .limits import by_topic
 from .llm import ChatLLM, LLMError
 from .recommend import recommend
-from .deploy import Deployer
 from .tools import APP_PREFIX, DANGER, build_tools
 
 
@@ -228,6 +228,7 @@ def cmd_verify(args, settings, log) -> int:
 
 def cmd_eval(args, settings, log) -> int:
     import json as _json
+
     from .evaluate import evaluate
     out = []
     for path in args.sets:
@@ -332,7 +333,7 @@ def cmd_domain(args, settings, log) -> int:
             print("SSL requested (Let's Encrypt). Check again in a few minutes.")
     g = domains.guide(args.domain, info.get("cname_target"), info.get("txt_verification"))
     print(f"\nSteps you do at {g['registrar']} (the Liara API cannot do these):")
-    for i, (fa, en) in enumerate(zip(g["steps_fa"], g["steps_en"]), 1):
+    for i, (fa, en) in enumerate(zip(g["steps_fa"], g["steps_en"], strict=True), 1):
         print(f"  {i}. {fa}\n     {en}")
     print("Records (if you keep your own DNS):")
     for r in g["records"]:

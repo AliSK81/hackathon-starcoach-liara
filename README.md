@@ -58,6 +58,12 @@ Tests run offline.
 uv run pytest -q
 ```
 
+Lint (optional, uses ruff through uvx):
+
+```bash
+uvx ruff check src tests
+```
+
 ## Docs
 
 - [Roadmap](docs/ROADMAP.md)

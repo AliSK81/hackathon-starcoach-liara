@@ -258,3 +258,22 @@ Not done yet:
 
 Next change idea:
 - A lint pass. Then the reviewer doc (phase 8), while waiting for `.env`.
+
+### Change 11 — Lint pass — 2026-10-22
+Phase: clean-up (rule 12)
+How to see it: `uvx ruff check src tests`
+Proof it works: ruff reports "All checks passed!". 70 tests pass.
+
+Research: none
+Questions: none
+Decisions: none
+
+Shipped:
+- Ruff config in `pyproject.toml` (E, F, W, B, I; long lines and `l` names allowed).
+- Sorted imports. `zip(..., strict=True)` in the domain guide. `pytest.raises` instead of `assert False`.
+
+Not done yet:
+- none
+
+Next change idea:
+- The reviewer doc (phase 8).

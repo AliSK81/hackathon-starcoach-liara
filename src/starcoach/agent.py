@@ -56,7 +56,8 @@ class Agent:
         for _ in range(self.max_rounds):
             reply = self.llm.complete(self.messages, schemas)
             calls = reply.get("tool_calls") or []
-            self.messages.append({"role": "assistant", "content": reply.get("content") or "",
+            # With tool calls, content is null (accepted by OpenAI-style providers; "" is rejected by some).
+            self.messages.append({"role": "assistant", "content": reply.get("content") or (None if calls else ""),
                                   **({"tool_calls": calls} if calls else {})})
             if not calls:
                 answer = reply.get("content") or ""
@@ -75,9 +76,13 @@ class Agent:
     def run_call(self, call: dict) -> dict:
         fn = call.get("function", {})
         name = fn.get("name", "")
+        raw = fn.get("arguments") or "{}"
         try:
-            args = json.loads(fn.get("arguments") or "{}")
+            # Most providers send a JSON string; some send an object.
+            args = raw if isinstance(raw, dict) else json.loads(raw)
         except ValueError:
+            args = {}
+        if not isinstance(args, dict):
             args = {}
         tool = self.tools.get(name)
         if tool is None:

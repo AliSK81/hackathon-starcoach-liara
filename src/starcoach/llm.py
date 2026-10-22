@@ -21,6 +21,8 @@ class ChatLLM:
     transport: Transport = urllib_transport
     log: object | None = None
     timeout: float = 120.0
+    attempts: int = 3
+    retry_wait: float = 2.0
 
     def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
         """Return the assistant message: {"role", "content", "tool_calls"?}."""
@@ -30,15 +32,23 @@ class ChatLLM:
         if tools:
             body["tools"] = tools
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
-        start = time.monotonic()
-        try:
-            status, content = self.transport("POST", self.base_url + "/chat/completions", headers,
-                                             json.dumps(body).encode(), self.timeout)
-        except OSError as exc:
-            raise LLMError(f"Cannot reach the LLM provider: {exc}") from exc
-        if self.log is not None:
-            self.log.write("llm", status=status, ms=int((time.monotonic() - start) * 1000),
-                           model=self.model, messages=len(messages))
+        for attempt in range(self.attempts):
+            start = time.monotonic()
+            try:
+                status, content = self.transport("POST", self.base_url + "/chat/completions", headers,
+                                                 json.dumps(body).encode(), self.timeout)
+            except OSError as exc:
+                if attempt + 1 < self.attempts:
+                    time.sleep(self.retry_wait * (attempt + 1))
+                    continue
+                raise LLMError(f"Cannot reach the LLM provider: {exc}") from exc
+            if self.log is not None:
+                self.log.write("llm", status=status, ms=int((time.monotonic() - start) * 1000),
+                               model=self.model, messages=len(messages), attempt=attempt + 1)
+            if status in (429, 500, 502, 503, 504) and attempt + 1 < self.attempts:
+                time.sleep(self.retry_wait * (attempt + 1))
+                continue
+            break
         if status >= 400:
             raise LLMError(f"The LLM provider returned {status}: {content[:300].decode('utf-8', 'replace')}")
         try:

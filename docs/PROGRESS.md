@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 70 offline tests pass. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 73 offline tests pass. A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
 
 ### What we need from the user
 
@@ -195,7 +195,7 @@ Next change idea:
 ### Change 8 — Diagnosis engine, fix tools and fix verification — 2026-10-22
 Phase: 5, steps 1–6
 How to see it: `uv run starcoach eval`; `uv run starcoach diagnose <app>` (needs the token)
-Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 70 offline tests pass. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
+Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 73 offline tests pass. A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
 
 Research: 06 §3–6 (rules, weights, verification). 01 §4 (update-envs replaces all and restarts; encrypted values may be masked → we refuse).
 Questions: none
@@ -295,3 +295,22 @@ Not done yet:
 
 Next change idea:
 - When `.env` arrives: `check`, deploy the demo app, run the real scenario, and record facts.
+
+### Change 13 — Fresh-clone check; LLM calls hardened for any OpenAI-compatible provider — 2026-10-22
+Phase: 8, step 2 (and phase 2 robustness)
+How to see it: `uv run pytest -q tests/test_llm.py`
+Proof it works: a fresh `git clone` of the GitHub repo, then `uv sync`, then `uv run pytest -q`: 70 passed; `starcoach eval` gave the same numbers. After this change, 73 tests pass. A 429 is retried and then succeeds. A 400 is not retried. Tool arguments sent as an object work. An assistant turn with tool calls is stored with `content: null`.
+
+Research: 05 (provider differences; tool calling through OpenAI-compatible gateways).
+Questions: none
+Decisions: none
+
+Shipped:
+- `ChatLLM`: up to 3 tries on network errors, 429 and 5xx, with backoff. The attempt number is logged.
+- `Agent`: accepts tool arguments as a JSON string or an object. Uses `content: null` next to tool calls.
+
+Not done yet:
+- Not tried against the user's real provider.
+
+Next change idea:
+- Real runs once `.env` exists.

@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat` (offline-tested; not yet run against the real API or LLM: needs `.env`). 19 offline tests pass.
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend` (offline-tested; not yet run against the real API or LLM: needs `.env`). 35 offline tests pass.
 
 ### What we need from the user
 
@@ -129,3 +129,23 @@ Not done yet:
 
 Next change idea:
 - Phase 3: `starcoach recommend <dir>` (platform detection and plan suggestion).
+
+### Change 5 — `starcoach recommend` suggests platform, port and plan; demo shop app — 2026-10-22
+Phase: 3, steps 1–2
+How to see it: `uv run starcoach recommend examples/demo-node`
+Proof it works: on the demo app it prints `Platform: node  Port: 3000  RAM need: ~512 MB` and no warnings. 35 tests pass offline (12 platform cases, UTF-16 requirements, warnings, plan pick). The demo app runs locally: `/` → 500 with `Error: connect ECONNREFUSED 127.0.0.1:5432` in its log (no `SHOP_DB_URL`), and `/health` → 200.
+
+Research: 02 §6 (detection order, ports) and §8 (failures), checked against `liara-cloud/cli@14ec35f:src/commands/app/create.ts:156-213` for plan fields (`available`, `region`, `RAM.amount`, `CPU.amount`, `price` per hour × 720) and the `g2` filter.
+Questions: none
+Decisions: D7
+
+Shipped:
+- `recommend.py`: CLI-order platform detection, default ports, pre-deploy checks (no `npm start`, Next.js standalone, no requirements.txt, `.env` present, fixed port), and a plan pick from the real `/v1/me` plan list.
+- `LiaraClient.plans()` keeps only `plans` from `/v1/me`. The rest holds personal data and storage keys.
+- `examples/demo-node`: a dependency-free shop. It returns 500 without `SHOP_DB_URL`, and `LEAK_MB` makes it leak memory. These are the phase 5 demo faults.
+
+Not done yet:
+- The plan pick is not yet checked against the real plan list (needs the token).
+
+Next change idea:
+- Packer (tar.gz with ignore rules), then `deploy`.

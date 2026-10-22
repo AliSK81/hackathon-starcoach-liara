@@ -125,6 +125,10 @@ class LiaraClient:
     def me(self) -> dict:
         return self.request("GET", "/v1/me")
 
+    def plans(self) -> dict:
+        """Plan catalog from /v1/me. Only `plans` is kept: the rest holds personal data and keys."""
+        return self.me().get("plans", {}) or {}
+
     def list_apps(self) -> list[dict]:
         return self.request("GET", "/v1/projects").get("projects", [])
 

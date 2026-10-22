@@ -15,6 +15,7 @@ Rules:
 | D4 | Interface: a local web chat and a CLI. The assistant answers in the user's language, Persian first. Docs are in English. | 2026-10-22 | user |
 | D5 | Language: Python. Few libraries. Tests run offline. | 2026-10-22 | Claude |
 | D6 | Risk tiers for every tool: `read` runs at once; `change` and `danger` need a user "yes" first. | 2026-10-22 | rules (requirements: Human-in-the-Loop) |
+| D7 | Plan choice: the cheapest available Iran `g2*` plan with enough RAM for the platform class, plus the cheapest available feature bundle. The free plan is not suggested. RAM classes: static 256 MB, node/python/flask/go/php 512 MB, django/laravel/next/docker/dotnet 1 GB. | 2026-10-22 | Claude |
 
 ## Checked facts
 

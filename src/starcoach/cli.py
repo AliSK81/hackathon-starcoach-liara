@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from . import __version__
 from .config import load_settings
@@ -12,6 +13,7 @@ from .agent import Agent
 from .liara import LiaraClient, LiaraError
 from .limits import by_topic
 from .llm import ChatLLM, LLMError
+from .recommend import recommend
 from .tools import build_tools
 
 
@@ -54,6 +56,36 @@ def cmd_status(args, settings, log) -> int:
     items = applets if isinstance(applets, list) else applets.get("applets", [])
     for it in items:
         print(f"  instance {it.get('name', '?')}: {it.get('state', '?')} {it.get('reason') or ''}".rstrip())
+    return 0
+
+
+def load_plans(settings, log) -> dict:
+    """Plan catalog, or {} when there is no token or Liara is unreachable."""
+    if not settings.liara_token:
+        return {}
+    try:
+        return _client(settings, log).plans()
+    except LiaraError as exc:
+        log.write("warn", where="load_plans", error=str(exc))
+        return {}
+
+
+def cmd_recommend(args, settings, log) -> int:
+    plans = load_plans(settings, log)
+    advice = recommend(Path(args.dir), plans.get("projects"), plans.get("projectBundlePlans"))
+    log.write("result", command="recommend", advice=advice.to_dict())
+    print(f"Platform: {advice.platform}   Port: {advice.port}   RAM need: ~{advice.ram_need_mb} MB")
+    for r in advice.reasons:
+        print(f"  • {r}")
+    if advice.plan:
+        p = advice.plan
+        print(f"Suggested plan: {p['id']} — {p['cpu']} CPU, {p['ram_gb']} GB RAM, "
+              f"~{p['price_per_month']:,} Toman/month"
+              + (f" + bundle {p['bundle']} {p['bundle_price_per_month']:,}" if p.get("bundle") else ""))
+    elif not plans:
+        print("Plan: set LIARA_API_TOKEN to get a plan from your account's real plan list.")
+    for w in advice.warnings:
+        print(f"  ⚠️  {w}")
     return 0
 
 
@@ -124,6 +156,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("status", help="show one app's state and instances")
     p.add_argument("app")
     p.set_defaults(func=cmd_status)
+    p = sub.add_parser("recommend", help="look at a project folder and suggest platform, port and plan")
+    p.add_argument("dir", nargs="?", default=".")
+    p.set_defaults(func=cmd_recommend)
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)

@@ -1,0 +1,12 @@
+{
+  "name": "starcoach-demo-shop",
+  "version": "1.0.0",
+  "description": "Tiny demo shop for StarCoach. No dependencies.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

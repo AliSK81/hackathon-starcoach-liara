@@ -297,6 +297,50 @@ def cmd_web(args, settings, log) -> int:
     return 0
 
 
+def cmd_watch(args, settings, log) -> int:
+    from .watch import Watcher
+    w = Watcher(_client(settings, log), args.apps, log=log, auto_restart=args.auto_restart)
+    print(f"Watching {', '.join(args.apps)} every {args.interval}s. Alerts: results/alerts.jsonl"
+          + ("  (auto-restart ON, max once per hour)" if args.auto_restart else ""))
+    try:
+        w.run(args.interval, cycles=1 if args.once else args.cycles)
+    except KeyboardInterrupt:
+        print("stopped.")
+    return 0
+
+
+def cmd_domain(args, settings, log) -> int:
+    from . import domains
+    client = _client(settings, log) if (args.add or args.check or args.ssl) else None
+    info = {}
+    if args.add:
+        if not confirm(f"Add {args.domain} to {args.app}?", args.yes):
+            print("Not added.")
+            return 1
+        info = domains.add_domain(client, args.app, args.domain)
+        log.write("result", command="domain-add", app=args.app, domain=args.domain, status=info.get("status"))
+        print(f"Added. Status: {info.get('status')}")
+    elif args.check or args.ssl:
+        found = [d for d in domains.list_domains(client, args.app) if d["name"] == args.domain]
+        if not found:
+            print(f"{args.domain} is not on {args.app} yet. Use --add first.")
+            return 1
+        info = domains.check_domain(client, found[0]["id"])
+        print(f"Status: {info.get('status')}   SSL: {info.get('ssl')}")
+        if args.ssl:
+            domains.enable_ssl(client, args.domain)
+            print("SSL requested (Let's Encrypt). Check again in a few minutes.")
+    g = domains.guide(args.domain, info.get("cname_target"), info.get("txt_verification"))
+    print(f"\nSteps you do at {g['registrar']} (the Liara API cannot do these):")
+    for i, (fa, en) in enumerate(zip(g["steps_fa"], g["steps_en"]), 1):
+        print(f"  {i}. {fa}\n     {en}")
+    print("Records (if you keep your own DNS):")
+    for r in g["records"]:
+        print(f"  {r['type']:<12} {r['name']:<16} {r['value']}")
+    print(g["after"])
+    return 0
+
+
 def cmd_limits(args, settings, log) -> int:
     for lim in by_topic(args.topic):
         print(f"[{lim.topic}] {lim.en}\n    {lim.fa}")
@@ -440,6 +484,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)
     p.set_defaults(func=cmd_web)
+    p = sub.add_parser("watch", help="check apps on a schedule; alert once per change; diagnose on failure")
+    p.add_argument("apps", nargs="+")
+    p.add_argument("--interval", type=int, default=60)
+    p.add_argument("--cycles", type=int, default=None)
+    p.add_argument("--once", action="store_true")
+    p.add_argument("--auto-restart", action="store_true", help="restart a down app (max once per hour)")
+    p.set_defaults(func=cmd_watch)
+    p = sub.add_parser("domain", help="connect a custom domain: API steps plus registrar (IRNIC) guide")
+    p.add_argument("app")
+    p.add_argument("domain")
+    p.add_argument("--add", action="store_true", help="add the domain to the app (asks first)")
+    p.add_argument("--check", action="store_true", help="show the domain's DNS and SSL status")
+    p.add_argument("--ssl", action="store_true", help="request a free SSL certificate")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(func=cmd_domain)
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)

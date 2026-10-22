@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import diagnose, observe
+from . import diagnose, domains, observe
 from .deploy import Deployer, release_status
 from .liara import LiaraClient
 from .limits import by_topic
@@ -139,6 +139,21 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
         client.resize(app, plan)
         return {"status": "submitted", "plan": plan, "next": "call verify_fix to check the result"}
 
+    def domain_guide(app: str, domain: str) -> dict:
+        info = {}
+        try:
+            found = [d for d in domains.list_domains(client, app) if d["name"] == domain]
+            info = domains.check_domain(client, found[0]["id"]) if found else {}
+        except Exception as exc:
+            info = {"note": f"could not read domain status: {exc}"}
+        return {"status": info, **domains.guide(domain, info.get("cname_target"), info.get("txt_verification"))}
+
+    def add_domain(app: str, domain: str) -> dict:
+        return {**domains.add_domain(client, app, domain), "guide": domains.guide(domain)["steps_en"]}
+
+    def enable_ssl(domain: str) -> dict:
+        return {"status": "requested", **(domains.enable_ssl(client, domain) or {})}
+
     tools = [
         Tool("list_apps", "List the user's Liara apps with platform, plan and status.", READ, list_apps),
         Tool("app_status", "Show one app's details and its running instances.", READ, app_status,
@@ -174,6 +189,13 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
              "gone. Pass the cause ids from diagnose_app and `since` = its fix_started_marker.", READ, verify_fix,
              {**APP, "cause_ids": {"type": "array", "items": {"type": "string"}},
               "since": {"type": "integer"}, "wait_seconds": {"type": "integer"}}, ["app"]),
+        Tool("domain_guide", "Status of a custom domain and the exact steps the user must do at the registrar "
+             "(IRNIC for .ir). Use it for any domain question.", READ, domain_guide,
+             {**APP, "domain": {"type": "string"}}, ["app", "domain"]),
+        Tool("add_domain", "Connect a custom domain to an app.", CHANGE, add_domain,
+             {**APP, "domain": {"type": "string"}}, ["app", "domain"]),
+        Tool("enable_ssl", "Request a free Let's Encrypt certificate for a connected domain.", CHANGE, enable_ssl,
+             {"domain": {"type": "string"}}, ["domain"]),
         Tool("restart_app", "Restart an app. The site is briefly unavailable.", CHANGE, restart_app,
              APP, ["app"]),
         Tool("set_env", "Set one environment variable (merged with the others). Liara restarts the app.",

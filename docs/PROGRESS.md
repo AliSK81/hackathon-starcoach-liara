@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 63 offline tests pass. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 70 offline tests pass. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
 
 ### What we need from the user
 
@@ -195,7 +195,7 @@ Next change idea:
 ### Change 8 — Diagnosis engine, fix tools and fix verification — 2026-10-22
 Phase: 5, steps 1–6
 How to see it: `uv run starcoach eval`; `uv run starcoach diagnose <app>` (needs the token)
-Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 63 offline tests pass. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
+Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 70 offline tests pass. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
 
 Research: 06 §3–6 (rules, weights, verification). 01 §4 (update-envs replaces all and restarts; encrypted values may be masked → we refuse).
 Questions: none
@@ -238,3 +238,23 @@ Not done yet:
 
 Next change idea:
 - Phase 7: `watch` (scheduled health checks with deduplicated alerts) and the `domain` guide.
+
+### Change 10 — `watch` automation and the `domain` guide (IRNIC) — 2026-10-22
+Phase: 7, steps 1–6
+How to see it: `uv run starcoach domain starcoach-shop myshop.ir` (no token needed for the guide); `uv run starcoach watch <app> --once`
+Proof it works: 70 tests pass offline. A probe sequence 200,200,500,500,200 gives exactly 3 alerts (unknown→up, up→down, down→up), and the "down" alert names the likely cause. A second process with the same state file writes no duplicate alert. Auto-restart never happens without the flag; with it, 2 restarts over 3 cycles across a 1-hour cooldown. One app with a DNS error does not stop the cycle. The real `domain ... myshop.ir` prints the 7 IRNIC steps in Persian and English.
+
+Research: 04 B.2–B.7 (domain API, records, IRNIC steps, Liara nameservers, SSL).
+Questions: none
+Decisions: none
+
+Shipped:
+- `watch.py`: states up/slow/degraded/down, alerts on change only, atomic state save before the alert, diagnosis attached, opt-in auto-restart with a 1-hour cooldown, errors logged and the cycle goes on.
+- `domains.py`: list, add, check, SSL, and a bilingual registrar guide (IRNIC or generic) with the records to add.
+- CLI `watch`, `domain`. Agent tools `domain_guide`, `add_domain`, `enable_ssl`. Persian labels in the web UI.
+
+Not done yet:
+- Real runs (needs the token). The Liara nameservers come from a live lookup in research, not from our own zone API call.
+
+Next change idea:
+- A lint pass. Then the reviewer doc (phase 8), while waiting for `.env`.

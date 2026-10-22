@@ -16,7 +16,7 @@ from .limits import by_topic
 from .llm import ChatLLM, LLMError
 from .recommend import recommend
 from .deploy import Deployer
-from .tools import APP_PREFIX, build_tools
+from .tools import APP_PREFIX, DANGER, build_tools
 
 
 def cmd_version(args, settings, log) -> int:
@@ -190,6 +190,96 @@ def cmd_health(args, settings, log) -> int:
     return 0 if r["ok_ratio"] == 1 else 4
 
 
+def print_diagnosis(result: dict) -> None:
+    print(f"App {result['app']}: {result['summary'].upper()}")
+    pr = result.get("probe") or {}
+    if pr:
+        print(f"  site: {int(pr.get('ok_ratio', 0) * 100)}% OK, statuses {pr.get('statuses')}, p50 {pr.get('p50_ms')} ms")
+    for i, c in enumerate(result["causes"], 1):
+        print(f"  {i}. {c['title']} — confidence {int(c['confidence'] * 100)}% [{c['id']}]")
+        for e in c["evidence"][:3]:
+            print(f"       evidence: {e}")
+        print(f"       fix: {c['fix']}")
+        if c.get("action"):
+            print(f"       can do: {c['action']['tool']} {c['action']['args']}")
+    for m in result.get("missing_evidence", []):
+        print(f"  (could not read {m})")
+
+
+def cmd_diagnose(args, settings, log) -> int:
+    from . import diagnose as dg
+    result = dg.diagnose(dg.gather(_client(settings, log), args.app, args.minutes))
+    log.write("result", command="diagnose", result=result)
+    print_diagnosis(result)
+    return 0
+
+
+def cmd_verify(args, settings, log) -> int:
+    from . import diagnose as dg
+    since = time.time() - args.since_minutes * 60
+    r = dg.verify_fix(_client(settings, log), args.app, args.causes or [], since, wait_seconds=args.wait)
+    log.write("result", command="verify", result=r)
+    print(f"Verdict: {r['verdict']}. Site {int(r['probe']['ok_ratio'] * 100)}% OK "
+          f"{r['probe']['statuses']}, {r['new_log_lines']} new log lines, waited {r['probe']['waited_seconds']}s.")
+    for cid, lines in r["signatures_still_present"].items():
+        print(f"  still seen {cid}: {lines[0][:160]}")
+    return 0 if r["fixed"] else 5
+
+
+def cmd_eval(args, settings, log) -> int:
+    import json as _json
+    from .evaluate import evaluate
+    out = []
+    for path in args.sets:
+        r = evaluate(Path(path))
+        out.append(r)
+        print(f"{r['set']}: {r['cases']} cases — engine top-1 {r['engine_top1']:.0%}, "
+              f"top-3 {r['engine_top3']:.0%}; naive baseline top-1 {r['baseline_top1']:.0%}")
+        for row in r["rows"]:
+            if not row["engine_top1"]:
+                print(f"   miss: {row['name']}: expected {row['expect']}, got {row['engine']}")
+    Path("results").mkdir(exist_ok=True)
+    Path("results/diagnosis-eval.json").write_text(_json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    log.write("result", command="eval", summary=[{k: r[k] for k in ("set", "cases", "engine_top1", "baseline_top1")} for r in out])
+    print("saved results/diagnosis-eval.json")
+    return 0
+
+
+def cmd_set_env(args, settings, log) -> int:
+    if not confirm(f"Set {args.key} on {args.app}? Liara restarts the app.", args.yes):
+        print("Not changed.")
+        return 1
+    r = _client(settings, log).set_env(args.app, args.key, args.value)
+    log.write("result", command="set-env", app=args.app, key=args.key, env_count=r["env_count"])
+    print(f"Set {args.key}. The app restarts now ({r['env_count']} env vars).")
+    return 0
+
+
+def cmd_scale(args, settings, log) -> int:
+    on = args.command == "start"
+    if not on:
+        typed = args.app if args.yes else input(
+            f"Turning {args.app} off takes the site down. Type the app name to approve: ").strip()
+        if typed != args.app:
+            print("Not changed.")
+            return 1
+    _client(settings, log).scale(args.app, on)
+    print(f"{args.app} is turning {'on' if on else 'off'}.")
+    return 0
+
+
+def cmd_resize(args, settings, log) -> int:
+    typed = args.app if args.yes else input(
+        f"Move {args.app} to plan {args.plan}? This changes the cost. Type the app name to approve: ").strip()
+    if typed != args.app:
+        print("Not changed.")
+        return 1
+    _client(settings, log).resize(args.app, args.plan)
+    log.write("result", command="resize", app=args.app, plan=args.plan)
+    print(f"Resize of {args.app} to {args.plan} submitted.")
+    return 0
+
+
 def cmd_limits(args, settings, log) -> int:
     for lim in by_topic(args.topic):
         print(f"[{lim.topic}] {lim.en}\n    {lim.fa}")
@@ -207,7 +297,11 @@ STATUS_LINES = {
 
 
 def terminal_approver(tool, args) -> bool:
-    answer = input(f"  Run {tool.name} {args}? Type yes / بله to approve: ").strip().lower()
+    shown = tool.safe_args(args)
+    if tool.risk == DANGER:  # high consequence: the user types the app name (research 05)
+        typed = input(f"  ⛔ {tool.name} {shown} is high-risk. Type the app name to approve: ").strip()
+        return bool(args.get("app")) and typed == args.get("app")
+    answer = input(f"  Run {tool.name} {shown}? Type yes / بله to approve: ").strip().lower()
     return answer in ("y", "yes", "بله", "آره", "ok")
 
 
@@ -295,6 +389,36 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("target", help="app name or URL")
     p.add_argument("--tries", type=int, default=5)
     p.set_defaults(func=cmd_health)
+    p = sub.add_parser("diagnose", help="find probable causes of errors or slowness, with fixes")
+    p.add_argument("app")
+    p.add_argument("--minutes", type=int, default=30)
+    p.set_defaults(func=cmd_diagnose)
+    p = sub.add_parser("verify", help="after a fix: re-probe and check old errors are gone")
+    p.add_argument("app")
+    p.add_argument("--causes", nargs="*", help="cause ids from diagnose")
+    p.add_argument("--since-minutes", type=float, default=5)
+    p.add_argument("--wait", type=int, default=90, help="seconds to wait for the app to come back")
+    p.set_defaults(func=cmd_verify)
+    p = sub.add_parser("eval", help="score the diagnosis engine on labelled incidents vs a baseline")
+    p.add_argument("sets", nargs="*", default=["evals/incidents_dev.json", "evals/incidents_holdout.json",
+                                               "evals/incidents_holdout2.json"])
+    p.set_defaults(func=cmd_eval)
+    p = sub.add_parser("set-env", help="set one env var (asks first; restarts the app)")
+    p.add_argument("app")
+    p.add_argument("key")
+    p.add_argument("value")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(func=cmd_set_env)
+    for name, help_text in (("start", "turn an app on"), ("stop", "turn an app off (type the name to approve)")):
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("app")
+        p.add_argument("--yes", action="store_true")
+        p.set_defaults(func=cmd_scale)
+    p = sub.add_parser("resize", help="change an app's plan (type the name to approve)")
+    p.add_argument("app")
+    p.add_argument("plan")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(func=cmd_resize)
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)

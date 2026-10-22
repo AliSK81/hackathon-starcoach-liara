@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import observe
+from . import diagnose, observe
 from .deploy import Deployer, release_status
 from .liara import LiaraClient
 from .limits import by_topic
@@ -24,6 +25,10 @@ class Tool:
     func: Callable[..., dict]
     params: dict = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
+    secret_args: tuple = ()  # masked in status lines and logs
+
+    def safe_args(self, args: dict) -> dict:
+        return {k: ("***" if k in self.secret_args else v) for k, v in args.items()}
 
     def schema(self) -> dict:
         return {"type": "function", "function": {
@@ -104,7 +109,35 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
 
     def restart_app(app: str) -> dict:
         client.restart(app)
-        return {"status": "submitted", "message": f"Restart of {app} was sent to Liara."}
+        return {"status": "submitted", "message": f"Restart of {app} was sent to Liara.",
+                "next": "call verify_fix to check the result"}
+
+    def diagnose_app(app: str, minutes: int = 30) -> dict:
+        result = diagnose.diagnose(diagnose.gather(client, app, minutes))
+        result["fix_started_marker"] = int(time.time())
+        return result
+
+    def verify_fix(app: str, cause_ids: list[str] | None = None, since: int | None = None,
+                   wait_seconds: int = 90) -> dict:
+        return diagnose.verify_fix(client, app, cause_ids or [], since or int(time.time()) - 60,
+                                   wait_seconds=min(wait_seconds, 300))
+
+    def set_env(app: str, key: str, value: str) -> dict:
+        result = client.set_env(app, key, value)
+        return {"status": "applied", "key": key, "message": "Liara restarts the app to apply it.",
+                "env_count": result["env_count"], "next": "call verify_fix to check the result"}
+
+    def start_app(app: str) -> dict:
+        client.scale(app, True)
+        return {"status": "submitted", "message": f"{app} is turning on."}
+
+    def stop_app(app: str) -> dict:
+        client.scale(app, False)
+        return {"status": "submitted", "message": f"{app} is turning off. The site is down until it is started."}
+
+    def resize_app(app: str, plan: str) -> dict:
+        client.resize(app, plan)
+        return {"status": "submitted", "plan": plan, "next": "call verify_fix to check the result"}
 
     tools = [
         Tool("list_apps", "List the user's Liara apps with platform, plan and status.", READ, list_apps),
@@ -134,7 +167,22 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
         Tool("deploy_app", "Upload a local project folder and release it as the new live version.",
              CHANGE, deploy_app,
              {"path": {"type": "string"}, **APP, "port": {"type": "integer"}}, ["path", "app"]),
+        Tool("diagnose_app", "Find out why an app is failing or slow: collects logs, events, metrics and a "
+             "site probe, and returns ranked probable causes with evidence and fixes.", READ, diagnose_app,
+             {**APP, "minutes": {"type": "integer"}}, ["app"]),
+        Tool("verify_fix", "After a fix: wait for the app, re-probe the site and check the old error lines are "
+             "gone. Pass the cause ids from diagnose_app and `since` = its fix_started_marker.", READ, verify_fix,
+             {**APP, "cause_ids": {"type": "array", "items": {"type": "string"}},
+              "since": {"type": "integer"}, "wait_seconds": {"type": "integer"}}, ["app"]),
         Tool("restart_app", "Restart an app. The site is briefly unavailable.", CHANGE, restart_app,
              APP, ["app"]),
+        Tool("set_env", "Set one environment variable (merged with the others). Liara restarts the app.",
+             CHANGE, set_env, {**APP, "key": {"type": "string"}, "value": {"type": "string"}},
+             ["app", "key", "value"], secret_args=("value",)),
+        Tool("start_app", "Turn an app on.", CHANGE, start_app, APP, ["app"]),
+        Tool("stop_app", "Turn an app off. The site goes down.", DANGER, stop_app, APP, ["app"]),
+        Tool("resize_app", "Move an app to another hardware plan. Changes the monthly cost.", DANGER, resize_app,
+             {**APP, "plan": {"type": "string", "description": "plan id from recommend_setup or the plan list"}},
+             ["app", "plan"]),
     ]
     return {t.name: t for t in tools}

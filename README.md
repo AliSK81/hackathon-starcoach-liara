@@ -35,6 +35,12 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach events <app>` | app events: restarts, kills, high RAM |
 | `uv run starcoach metrics <app>` | CPU and RAM against the plan limits |
 | `uv run starcoach health <app or URL> [--tries N]` | probe the site: status codes and latency |
+| `uv run starcoach diagnose <app>` | ranked probable causes with evidence and fixes |
+| `uv run starcoach verify <app> --causes ID...` | after a fix: wait, re-probe, check old errors are gone |
+| `uv run starcoach set-env <app> KEY VALUE` | set one env var (asks first; restarts the app) |
+| `uv run starcoach start <app>` / `stop <app>` | turn an app on / off (stop: type the name) |
+| `uv run starcoach resize <app> <plan>` | change the plan (type the name) |
+| `uv run starcoach eval` | score the diagnosis engine vs a baseline; writes `results/diagnosis-eval.json` |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
 | `uv run starcoach chat` | talk to the assistant (Persian or English) |
 | `uv run starcoach chat --once "..."` | ask one question and exit |

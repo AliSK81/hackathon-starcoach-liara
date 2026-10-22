@@ -145,6 +145,25 @@ class LiaraClient:
     def restart(self, name: str) -> dict:
         return self.request("POST", f"/v1/projects/{_q(name)}/actions/restart")
 
+    def scale(self, name: str, on: bool) -> dict:
+        return self.request("POST", f"/v1/projects/{_q(name)}/actions/scale", body={"scale": 1 if on else 0})
+
+    def resize(self, name: str, plan_id: str) -> dict:
+        return self.request("POST", f"/v1/projects/{_q(name)}/resize", body={"planID": plan_id})
+
+    def set_env(self, name: str, key: str, value: str) -> dict:
+        """update-envs replaces the whole set and restarts the app (research 01 §4), so we merge.
+        If any env is encrypted we stop: its value may be masked on read and would be overwritten."""
+        envs = self.get_app(name).get("envs") or []
+        if any(e.get("encrypted") for e in envs):
+            raise LiaraError("This app has encrypted env vars. To avoid overwriting them, "
+                             f"set {key} in the Liara console (Settings → Environment variables).")
+        merged = {e["key"]: e.get("value", "") for e in envs if e.get("key")}
+        merged[key] = value
+        variables = [{"key": k, "value": v} for k, v in merged.items()]
+        self.request("POST", "/v1/projects/update-envs", body={"project": name, "variables": variables})
+        return {"key": key, "env_count": len(variables)}
+
     def create_app(self, name: str, platform: str, plan_id: str, bundle_plan_id: str,
                    network: str | None = None) -> dict:
         """POST /v1/projects. Body as the CLI sends it (cli@14ec35f:src/commands/app/create.ts:80-88).

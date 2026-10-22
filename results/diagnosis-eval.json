@@ -1,0 +1,409 @@
+[
+  {
+    "set": "incidents_dev.json",
+    "cases": 8,
+    "engine_top1": 1.0,
+    "engine_top3": 1.0,
+    "baseline_top1": 0.25,
+    "rows": [
+      {
+        "name": "demo shop without db url",
+        "expect": "X-ENV-MISSING",
+        "engine": [
+          "X-ENV-MISSING",
+          "X-DB-REFUSED"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-DB-REFUSED",
+        "baseline_top1": false
+      },
+      {
+        "name": "node heap oom",
+        "expect": "X-OOM-EVENT",
+        "engine": [
+          "X-OOM-EVENT",
+          "N-HEAP",
+          "S-MEM"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "N-HEAP",
+        "baseline_top1": false
+      },
+      {
+        "name": "app turned off",
+        "expect": "X-OFF",
+        "engine": [
+          "X-OFF"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "django allowed hosts",
+        "expect": "DJ-HOST",
+        "engine": [
+          "DJ-HOST"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "laravel no key",
+        "expect": "LV-KEY",
+        "engine": [
+          "LV-KEY"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "LV-KEY",
+        "baseline_top1": true
+      },
+      {
+        "name": "gunicorn timeout",
+        "expect": "PY-WORKER-TIMEOUT",
+        "engine": [
+          "PY-WORKER-TIMEOUT"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "cpu throttled",
+        "expect": "S-CPU",
+        "engine": [
+          "S-CPU"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "healthy",
+        "expect": "healthy",
+        "engine": [
+          "healthy"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": true
+      }
+    ]
+  },
+  {
+    "set": "incidents_holdout.json",
+    "cases": 14,
+    "engine_top1": 1.0,
+    "engine_top3": 1.0,
+    "baseline_top1": 0.571,
+    "rows": [
+      {
+        "name": "express module missing after deploy",
+        "expect": "N-MODULE",
+        "engine": [
+          "N-MODULE"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "N-MODULE",
+        "baseline_top1": true
+      },
+      {
+        "name": "postgres refused (psycopg2)",
+        "expect": "X-DB-REFUSED",
+        "engine": [
+          "X-DB-REFUSED"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-DB-REFUSED",
+        "baseline_top1": true
+      },
+      {
+        "name": "mysql refused (laravel)",
+        "expect": "X-DB-REFUSED",
+        "engine": [
+          "X-DB-REFUSED"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-DB-REFUSED",
+        "baseline_top1": true
+      },
+      {
+        "name": "php memory exhausted",
+        "expect": "PHP-MEM",
+        "engine": [
+          "PHP-MEM"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "PHP-MEM",
+        "baseline_top1": true
+      },
+      {
+        "name": "next.js ineffective mark-compacts",
+        "expect": "N-HEAP",
+        "engine": [
+          "N-HEAP",
+          "S-MEM"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "N-HEAP",
+        "baseline_top1": true
+      },
+      {
+        "name": "flask module missing",
+        "expect": "PY-MODULE",
+        "engine": [
+          "PY-MODULE"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-APP-ERROR",
+        "baseline_top1": false
+      },
+      {
+        "name": "listening on localhost only",
+        "expect": "X-PORT-BIND",
+        "engine": [
+          "X-PORT-BIND"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "two listeners",
+        "expect": "N-ADDRINUSE",
+        "engine": [
+          "N-ADDRINUSE"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "N-ADDRINUSE",
+        "baseline_top1": true
+      },
+      {
+        "name": "memory near limit, site slow",
+        "expect": "S-MEM",
+        "engine": [
+          "S-MEM"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "laravel storage not writable",
+        "expect": "LV-STORAGE",
+        "engine": [
+          "LV-STORAGE"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "unhandled rejection crash loop",
+        "expect": "N-UNHANDLED",
+        "engine": [
+          "N-UNHANDLED"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-APP-ERROR",
+        "baseline_top1": false
+      },
+      {
+        "name": "healthy with noisy words",
+        "expect": "healthy",
+        "engine": [
+          "healthy"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-APP-ERROR",
+        "baseline_top1": false
+      },
+      {
+        "name": "missing api key env",
+        "expect": "X-ENV-MISSING",
+        "engine": [
+          "X-ENV-MISSING"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-ENV-MISSING",
+        "baseline_top1": true
+      },
+      {
+        "name": "oom event without logs",
+        "expect": "X-OOM-EVENT",
+        "engine": [
+          "X-OOM-EVENT",
+          "S-MEM"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-OOM-EVENT",
+        "baseline_top1": true
+      }
+    ]
+  },
+  {
+    "set": "incidents_holdout2.json",
+    "cases": 12,
+    "engine_top1": 1.0,
+    "engine_top3": 1.0,
+    "baseline_top1": 0.75,
+    "rows": [
+      {
+        "name": "redis host typo",
+        "expect": "X-DNS",
+        "engine": [
+          "X-DNS"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-DNS",
+        "baseline_top1": true
+      },
+      {
+        "name": "postgres too many clients",
+        "expect": "X-DB-MAXCONN",
+        "engine": [
+          "X-DB-MAXCONN"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-DB-MAXCONN",
+        "baseline_top1": true
+      },
+      {
+        "name": "django migrations not run",
+        "expect": "DJ-MIGRATE",
+        "engine": [
+          "DJ-MIGRATE"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "DJ-MIGRATE",
+        "baseline_top1": true
+      },
+      {
+        "name": "write outside tmp",
+        "expect": "X-ROFS",
+        "engine": [
+          "X-ROFS"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-ROFS",
+        "baseline_top1": true
+      },
+      {
+        "name": "gunicorn worker killed for memory",
+        "expect": "PY-WORKER-OOM",
+        "engine": [
+          "PY-WORKER-OOM",
+          "S-MEM"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "PY-WORKER-OOM",
+        "baseline_top1": true
+      },
+      {
+        "name": "no start script",
+        "expect": "N-NOSTART",
+        "engine": [
+          "N-NOSTART"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "N-NOSTART",
+        "baseline_top1": true
+      },
+      {
+        "name": "next.js econnreset on small plan",
+        "expect": "N-ECONNRESET",
+        "engine": [
+          "N-ECONNRESET"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-APP-ERROR",
+        "baseline_top1": false
+      },
+      {
+        "name": "laravel app key in json log",
+        "expect": "LV-KEY",
+        "engine": [
+          "LV-KEY"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "LV-KEY",
+        "baseline_top1": true
+      },
+      {
+        "name": "crash with no known signature",
+        "expect": "X-APP-ERROR",
+        "engine": [
+          "X-APP-ERROR"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "X-APP-ERROR",
+        "baseline_top1": true
+      },
+      {
+        "name": "healthy but slow-ish",
+        "expect": "healthy",
+        "engine": [
+          "healthy"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": true
+      },
+      {
+        "name": "turned off after balance ran out",
+        "expect": "X-OFF",
+        "engine": [
+          "X-OFF"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      },
+      {
+        "name": "flask bound to loopback",
+        "expect": "X-PORT-BIND",
+        "engine": [
+          "X-PORT-BIND"
+        ],
+        "engine_top1": true,
+        "engine_top3_ok": true,
+        "baseline": "healthy",
+        "baseline_top1": false
+      }
+    ]
+  }
+]

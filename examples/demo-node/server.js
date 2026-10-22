@@ -46,5 +46,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`demo shop listening on 0.0.0.0:${PORT} (db: ${DB_URL ? "set" : "missing"})`);
+  console.log(`demo shop listening on 0.0.0.0:${PORT}`);
+  if (!DB_URL) console.error("SHOP_DB_URL is not set; using default 127.0.0.1:5432");
 });

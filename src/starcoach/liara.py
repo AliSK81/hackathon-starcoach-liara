@@ -36,22 +36,30 @@ class LiaraError(Exception):
 
 
 def _friendly(status: int, payload: dict, path: str) -> LiaraError:
-    code = str(payload.get("errorCode") or payload.get("code") or "")
+    # Error bodies look like {statusCode, message, data: {code}} (research 01, section errors).
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
     detail = str(payload.get("message") or payload.get("error") or "")
+    code = str(data.get("code") or payload.get("code") or (detail if "_" in detail and " " not in detail else ""))
     if status == 401:
         msg = "Liara rejected the API token. Make a new one in the Liara console and set LIARA_API_TOKEN in .env."
+    elif status == 402:
+        msg = "Not enough account balance on Liara. Top up the account in the console."
+    elif code == "frozen_project":
+        msg = "The app is frozen because the account balance is low. Top up, then unfreeze it in the console."
+    elif status == 403 and code.startswith("free_plan"):
+        msg = "The free plan does not allow this. Choose a paid plan."
     elif status == 403:
         msg = "This token has no access to that resource."
     elif status == 404:
-        msg = "Not found on Liara. Check the app name."
+        msg = "Not found on Liara. Check the app name (or the team)."
     elif status == 409:
-        msg = "That name is already taken on Liara."
+        msg = "Conflict: the name is taken, or another operation on this app is still running."
     elif status == 413:
         msg = "The upload is too large for this plan."
+    elif status == 428:
+        msg = f"A plan limit was reached ({code or 'limit'})."
     elif status == 429:
         msg = "Liara is rate-limiting us. Try again shortly."
-    elif code == "frozen_project" or "frozen" in detail:
-        msg = "The app is frozen. The account balance is probably too low."
     elif status >= 500:
         msg = "Liara had a server error. Try again shortly."
     else:

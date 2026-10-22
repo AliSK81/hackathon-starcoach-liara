@@ -39,6 +39,20 @@ def test_401_gives_plain_message():
     assert e.value.status == 401 and "LIARA_API_TOKEN" in str(e.value)
 
 
+@pytest.mark.parametrize("status,payload,code,words", [
+    (400, {"statusCode": 400, "message": "frozen_project"}, "frozen_project", "frozen"),
+    (428, {"statusCode": 428, "message": "x", "data": {"code": "max_deployment_count_in_day"}},
+     "max_deployment_count_in_day", "plan limit"),
+    (402, {"statusCode": 402, "message": "pay"}, "", "balance"),
+    (409, {"statusCode": 409, "message": "busy"}, "", "another operation"),
+])
+def test_error_codes_mapped(status, payload, code, words):
+    c, _ = make([(status, payload)])
+    with pytest.raises(LiaraError) as e:
+        c.request("POST", "/v1/projects")
+    assert e.value.code == code and words in str(e.value)
+
+
 def test_get_retries_on_503_then_succeeds():
     c, t = make([(503, {}), (200, {"project": {"project_id": "x"}})])
     assert c.get_app("x")["project_id"] == "x"

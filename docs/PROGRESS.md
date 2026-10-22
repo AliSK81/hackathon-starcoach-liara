@@ -89,3 +89,21 @@ Not done yet:
 
 Next change idea:
 - Write the research index. Then do the Phase 2 thin agent, using a fake LLM in tests.
+
+### Change 3 — Liara error bodies are mapped by their real shape — 2026-10-22
+Phase: 1, step 5
+How to see it: `uv run pytest -q tests/test_liara.py`
+Proof it works: 13 tests pass offline. New cases: `frozen_project`, 428 `max_deployment_count_in_day`, 402, 409.
+
+Research: 01 (error format `{statusCode, message, data:{code}}`, inferred from the CLI, not documented).
+Questions: none
+Decisions: none
+
+Shipped:
+- `_friendly` reads `data.code` and code-like `message`. New messages: 402 balance, frozen app, free-plan 403, 409 busy, 428 plan limit.
+
+Not done yet:
+- Real error bodies are not yet seen. Check them on the first real failure.
+
+Next change idea:
+- Research index, then the Phase 2 thin agent.

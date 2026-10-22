@@ -2,8 +2,8 @@
 
 ## Status board
 
-- **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 73 offline tests pass. A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Current phase:** 8 — audit. Phases 1–7 are built and tested offline. Every real-API proof waits for `.env` (see the table below).
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 74 offline tests pass. A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
 
 ### What we need from the user
 
@@ -195,7 +195,7 @@ Next change idea:
 ### Change 8 — Diagnosis engine, fix tools and fix verification — 2026-10-22
 Phase: 5, steps 1–6
 How to see it: `uv run starcoach eval`; `uv run starcoach diagnose <app>` (needs the token)
-Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 73 offline tests pass. A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
+Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 74 offline tests pass. A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
 
 Research: 06 §3–6 (rules, weights, verification). 01 §4 (update-envs replaces all and restarts; encrypted values may be masked → we refuse).
 Questions: none
@@ -314,3 +314,21 @@ Not done yet:
 
 Next change idea:
 - Real runs once `.env` exists.
+
+### Change 14 — The demo scenario is a regression test — 2026-10-22
+Phase: 5/8
+How to see it: `uv run pytest -q tests/test_scenario.py`
+Proof it works: a Persian request ("site gives 500") → `diagnose_app` returns `X-ENV-MISSING` with action `set_env SHOP_DB_URL` → only `set_env` asks for approval → `update-envs` is called → `verify_fix` sees 5/5 × 200 and no old error lines → `fixed`. The env value never appears in events. 74 tests pass.
+
+Research: none
+Questions: none
+Decisions: none
+
+Shipped:
+- `tests/test_scenario.py`: a stateful fake Liara whose app is broken until the env var is set.
+
+Not done yet:
+- The same scenario on the real Liara (needs `.env`).
+
+Next change idea:
+- Real runs.

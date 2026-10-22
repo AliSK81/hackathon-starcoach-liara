@@ -280,6 +280,23 @@ def cmd_resize(args, settings, log) -> int:
     return 0
 
 
+def cmd_web(args, settings, log) -> int:
+    from .web import serve
+
+    def factory(approver, on_event):
+        return make_agent(settings, log, approver=approver, on_event=on_event)
+
+    server = serve(factory, args.host, args.port, log=log)
+    print(f"StarCoach web chat: http://{args.host}:{args.port}  (Ctrl+C to stop)")
+    if not settings.llm_base_url:
+        print("  note: LLM_BASE_URL is not set; the chat will report that until .env is filled in.")
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+    return 0
+
+
 def cmd_limits(args, settings, log) -> int:
     for lim in by_topic(args.topic):
         print(f"[{lim.topic}] {lim.en}\n    {lim.fa}")
@@ -419,6 +436,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("plan")
     p.add_argument("--yes", action="store_true")
     p.set_defaults(func=cmd_resize)
+    p = sub.add_parser("web", help="open the local web chat")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8765)
+    p.set_defaults(func=cmd_web)
     p = sub.add_parser("limits", help="what the Liara API cannot do")
     p.add_argument("--topic", default=None)
     p.set_defaults(func=cmd_limits)

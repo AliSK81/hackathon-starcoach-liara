@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 1 and 2 built offline; real runs wait for `.env`. Building phase 3.
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 58 offline tests pass. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 63 offline tests pass. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
 
 ### What we need from the user
 
@@ -195,7 +195,7 @@ Next change idea:
 ### Change 8 — Diagnosis engine, fix tools and fix verification — 2026-10-22
 Phase: 5, steps 1–6
 How to see it: `uv run starcoach eval`; `uv run starcoach diagnose <app>` (needs the token)
-Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 58 offline tests pass. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
+Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 63 offline tests pass. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
 
 Research: 06 §3–6 (rules, weights, verification). 01 §4 (update-envs replaces all and restarts; encrypted values may be masked → we refuse).
 Questions: none
@@ -217,3 +217,24 @@ Not done yet:
 
 Next change idea:
 - Phase 6: the web chat UI with approval cards (no keys needed to build it).
+
+### Change 9 — Web chat with live status and approval cards — 2026-10-22
+Phase: 6, all steps
+How to see it: `uv run starcoach web`, then open http://127.0.0.1:8765
+Proof it works: 63 tests pass offline. 5 are HTTP tests on a real local server with a scripted LLM and a fake Liara: the page is served; restart waits for the card, and Liara gets no call until "approve"; an approval id is single use (second answer → 400); a danger action is refused with a wrong typed name and accepted with the right one; reject means no call; history trimming keeps the sequence numbers. Checked by eye in the browser pane (desktop and 375 px mobile) with a scripted diagnose → set_env → answer flow: RTL layout, step timeline, approval card with Persian impact text and the masked value, a green card after approval, the conversation rebuilt after reload.
+
+Research: 05 (approval tied to exact args, single use; SSE; typed name for destructive actions).
+Questions: none
+Decisions: none
+
+Shipped:
+- `web.py`: stdlib threaded server, `/api/chat`, `/api/events` (SSE with ids and replay), `/api/approve`. Approvals have single-use ids and time out after 10 minutes (counted as reject). Binds to 127.0.0.1.
+- `static/index.html`: Persian-first RTL chat, quick-start buttons, step timeline with Persian tool names, deploy log box, approval cards (Persian impact text, risk badge, typed name for danger), safe minimal markdown (HTML is escaped first), dark mode, mobile layout.
+- CLI `web [--host --port]`.
+- Bugs found and fixed while testing: a closed SSE connection's thread stole the next event (now a sequenced history); sequence numbers broke after history trimming (own counter, with a test); answered cards stayed clickable after reload; raw markdown symbols; English text on Persian cards; the composer covered the last message on phones.
+
+Not done yet:
+- Not tried with a real LLM yet (needs `.env`).
+
+Next change idea:
+- Phase 7: `watch` (scheduled health checks with deduplicated alerts) and the `domain` guide.

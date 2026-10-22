@@ -42,6 +42,7 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach resize <app> <plan>` | change the plan (type the name) |
 | `uv run starcoach eval` | score the diagnosis engine vs a baseline; writes `results/diagnosis-eval.json` |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
+| `uv run starcoach web` | open the web chat at http://127.0.0.1:8765 (approval cards, live status) |
 | `uv run starcoach chat` | talk to the assistant (Persian or English) |
 | `uv run starcoach chat --once "..."` | ask one question and exit |
 

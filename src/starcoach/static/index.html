@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StarCoach — دستیار لیارا</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --text: #1d2330; --muted: #6b7385; --line: #e3e6ec;
+    --brand: #2b6de8; --brand-soft: #e8f0fe; --ok: #18864b; --ok-soft: #e6f5ec;
+    --warn: #b56a00; --warn-soft: #fff4e0; --bad: #c62f2f; --bad-soft: #fdeaea; --user: #2b6de8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1b1f27; --text: #e6e9ef; --muted: #98a0b0; --line: #2b313c;
+      --brand: #6b9bff; --brand-soft: #1f2a40; --ok: #4cc488; --ok-soft: #173225; --warn: #f0b04d;
+      --warn-soft: #3a2c14; --bad: #ff7b7b; --bad-soft: #3b1d1d; --user: #3d6fd6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: Vazirmatn, Tahoma, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.7; }
+  header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--panel);
+           border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header .state { margin-inline-start: auto; font-size: 13px; color: var(--muted); }
+  header .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+                margin-inline-end: 6px; vertical-align: middle; }
+  header .dot.busy { background: var(--warn); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  main { max-width: 860px; margin: 0 auto; padding: 16px 16px 140px; }
+  .msg { padding: 10px 14px; border-radius: 14px; margin: 10px 0; max-width: 88%; white-space: pre-wrap;
+         word-wrap: break-word; }
+  .user { background: var(--user); color: #fff; margin-inline-start: auto; border-end-end-radius: 4px; }
+  .bot { background: var(--panel); border: 1px solid var(--line); border-end-start-radius: 4px; }
+  .note { color: var(--muted); font-size: 13px; margin: 6px 4px; }
+  .step { font-size: 13px; color: var(--muted); margin: 3px 4px; display: flex; gap: 6px; align-items: baseline; }
+  .msg code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: var(--brand-soft);
+              padding: 0 4px; border-radius: 4px; direction: ltr; unicode-bidi: embed; }
+  .step code, .card code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; direction: ltr;
+                           unicode-bidi: embed; }
+  .step.err { color: var(--bad); }
+  .step.ok { color: var(--ok); }
+  .logbox { direction: ltr; text-align: left; font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+            background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+            margin: 4px 0 8px; max-height: 160px; overflow: auto; color: var(--muted); white-space: pre-wrap; }
+  .card { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 12px; padding: 12px 14px;
+          margin: 12px 0; }
+  .card.danger { background: var(--bad-soft); border-color: var(--bad); }
+  .card.done-ok { background: var(--ok-soft); border-color: var(--ok); }
+  .card.done-no { opacity: .7; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .badge { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--warn); color: #fff;
+           margin-inline-start: 6px; }
+  .danger .badge { background: var(--bad); }
+  .card .args { margin: 6px 0; }
+  .card .buttons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 7px 16px; cursor: pointer; }
+  button.yes { background: var(--ok); color: #fff; }
+  button.no { background: var(--line); color: var(--text); }
+  button:disabled { opacity: .5; cursor: default; }
+  .card input { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line);
+                background: var(--panel); color: var(--text); direction: ltr; }
+  .composer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel); border-top: 1px solid var(--line);
+              padding: 10px 16px 14px; }
+  .composer .inner { max-width: 860px; margin: 0 auto; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .quick button { background: var(--brand-soft); color: var(--brand); font-size: 13px; padding: 4px 12px; }
+  form { display: flex; gap: 8px; }
+  textarea { flex: 1; font: inherit; resize: none; border-radius: 12px; border: 1px solid var(--line);
+             padding: 9px 12px; background: var(--bg); color: var(--text); height: 46px; }
+  form button { background: var(--brand); color: #fff; }
+  @media (max-width: 600px) { main { padding-bottom: 230px; } .msg { max-width: 96%; } }
+  .welcome { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .welcome ul { margin: 6px 0 0; padding-inline-start: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⭐ StarCoach</h1>
+    <div class="sub">دستیار راه‌اندازی، دیپلوی و پایش سایت روی لیارا</div>
+  </div>
+  <div class="state"><span id="dot" class="dot"></span><span id="state">آماده</span></div>
+</header>
+<main id="chat">
+  <div class="welcome">
+    سلام! من کارهای فنی سایت شما روی لیارا را انجام می‌دهم. به زبان ساده بنویسید چه می‌خواهید.
+    <ul>
+      <li>کارهای فقط‌خواندنی (دیدن وضعیت، لاگ، مصرف منابع) را خودم انجام می‌دهم.</li>
+      <li>هر کار حساس (ری‌استارت، تغییر تنظیمات، دیپلوی، تغییر پلن) را <b>اول از شما می‌پرسم</b>.</li>
+      <li>اگر کاری با API لیارا ممکن نباشد، صادقانه می‌گویم و مراحل دستی را توضیح می‌دهم.</li>
+    </ul>
+  </div>
+</main>
+<div class="composer">
+  <div class="inner">
+    <div class="quick" id="quick">
+      <button data-q="چه برنامه‌هایی روی لیارا دارم و حالشان خوب است؟">📋 وضعیت برنامه‌هایم</button>
+      <button data-q="سایتم خطا می‌دهد. مشکل را پیدا کن و راه‌حل بده.">🩺 سایتم خطا می‌دهد</button>
+      <button data-q="سایتم کند شده. مصرف CPU و RAM را بررسی کن.">🐢 سایتم کند است</button>
+      <button data-q="می‌خواهم پروژه‌ام را روی لیارا منتشر کنم. چه پلنی مناسب است؟">🚀 انتشار پروژه</button>
+      <button data-q="چه کارهایی را API لیارا نمی‌تواند انجام دهد؟">ℹ️ محدودیت‌ها</button>
+    </div>
+    <form id="form">
+      <textarea id="input" placeholder="مثلاً: سایت starcoach-shop خطای ۵۰۰ می‌دهد" dir="auto"></textarea>
+      <button id="send" type="submit">ارسال</button>
+    </form>
+  </div>
+</div>
+<script>
+const session = (() => {
+  try { const s = localStorage.getItem("starcoach-session"); if (s) return s; } catch (e) {}
+  const s = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  try { localStorage.setItem("starcoach-session", s); } catch (e) {}
+  return s;
+})();
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+const stateEl = document.getElementById("state");
+const dot = document.getElementById("dot");
+const cards = {};
+let logBox = null;
+
+const LABELS = {
+  list_apps: "فهرست برنامه‌ها", app_status: "وضعیت برنامه", api_limits: "محدودیت‌های API",
+  recommend_setup: "بررسی پروژه و پیشنهاد پلن", get_logs: "خواندن لاگ‌ها", get_events: "خواندن رویدادها",
+  get_metrics: "مصرف CPU و RAM", probe_site: "بررسی پاسخ سایت", release_status: "وضعیت دیپلوی",
+  create_app: "ساخت برنامهٔ جدید", deploy_app: "دیپلوی نسخهٔ جدید", diagnose_app: "عیب‌یابی",
+  verify_fix: "بررسی نتیجهٔ اصلاح", restart_app: "ری‌استارت برنامه", set_env: "تنظیم متغیر محیطی",
+  start_app: "روشن کردن برنامه", stop_app: "خاموش کردن برنامه", resize_app: "تغییر پلن",
+};
+const label = (t) => LABELS[t] || t;
+// What each risky action does, in plain Persian, shown on its approval card.
+const IMPACT = {
+  create_app: "یک برنامهٔ جدید روی حساب لیارای شما ساخته می‌شود. تا وقتی وجود دارد، ساعتی هزینه دارد.",
+  deploy_app: "نسخهٔ جدید جایگزین نسخهٔ فعلی سایت می‌شود. اگر ساخت شکست بخورد، نسخهٔ قبلی می‌ماند.",
+  restart_app: "برنامه دوباره راه‌اندازی می‌شود و سایت چند ثانیه در دسترس نیست.",
+  set_env: "یک متغیر محیطی تنظیم می‌شود و لیارا برنامه را ری‌استارت می‌کند (چند ثانیه قطعی).",
+  start_app: "برنامه روشن می‌شود و هزینهٔ ساعتی آن دوباره شروع می‌شود.",
+  stop_app: "برنامه خاموش می‌شود و سایت تا روشن شدن دوباره در دسترس نیست.",
+  resize_app: "پلن سخت‌افزاری عوض می‌شود. هزینهٔ ماهانه تغییر می‌کند و ممکن است برنامه ری‌استارت شود.",
+};
+
+// Minimal, safe markdown: escape everything first, then bold, inline code and line breaks.
+function md(text) {
+  const esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+            .replace(/`([^`]+)`/g, "<code>$1</code>")
+            .replace(/^#{1,4}\s*(.+)$/gm, "<b>$1</b>");
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function add(node) { chat.appendChild(node); window.scrollTo(0, document.body.scrollHeight); return node; }
+function step(text, cls, code) {
+  const s = el("div", "step " + (cls || ""));
+  s.appendChild(el("span", "", text));
+  if (code) s.appendChild(el("code", "", code));
+  return add(s);
+}
+function argsText(args) {
+  return Object.entries(args || {}).map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`).join("  ");
+}
+function setBusy(b) {
+  send.disabled = b;
+  dot.classList.toggle("busy", b);
+  stateEl.textContent = b ? "در حال کار…" : "آماده";
+}
+
+function card(ev) {
+  const danger = ev.risk === "danger";
+  const c = el("div", "card" + (danger ? " danger" : ""));
+  const h = el("h3", "", "⚠️ نیاز به تأیید شما: " + label(ev.tool));
+  h.appendChild(el("span", "badge", danger ? "پرخطر" : "تغییر"));
+  c.appendChild(h);
+  c.appendChild(el("div", "", IMPACT[ev.tool] || ev.description));
+  const a = el("div", "args"); a.appendChild(el("code", "", argsText(ev.args))); c.appendChild(a);
+  let typed = null;
+  if (ev.type_to_confirm) {
+    c.appendChild(el("div", "note", `برای تأیید، نام برنامه (${ev.type_to_confirm}) را تایپ کنید:`));
+    typed = el("input"); typed.placeholder = ev.type_to_confirm; c.appendChild(typed);
+  }
+  const b = el("div", "buttons");
+  const yes = el("button", "yes", "✔ تأیید و اجرا");
+  const no = el("button", "no", "✖ انجام نده");
+  const msg = el("div", "note");
+  b.append(yes, no); c.append(b, msg);
+  async function answer(approve) {
+    yes.disabled = no.disabled = true;
+    const r = await fetch("/api/approve", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, id: ev.id, approve, typed: typed ? typed.value : "" }) });
+    const j = await r.json();
+    if (!j.ok) { msg.textContent = j.message; yes.disabled = no.disabled = false; }
+  }
+  yes.onclick = () => answer(true);
+  no.onclick = () => answer(false);
+  cards[ev.tool] = c;
+  return add(c);
+}
+
+function closeCard(tool, cls) {
+  const c = cards[tool];
+  if (!c) return;
+  c.className = cls;
+  c.querySelectorAll("button, input").forEach((b) => b.disabled = true);
+}
+
+function render(ev) {
+  switch (ev.kind) {
+    case "user": add(Object.assign(el("div", "msg user", ev.text), { dir: "auto" })); setBusy(true); break;
+    case "thinking": add(el("div", "note", "💬 " + ev.text)); break;
+    case "approval_needed": break;
+    case "approval_card": card(ev); break;
+    case "approved": closeCard(ev.tool, "card done-ok"); step("👍 تأیید شد: " + label(ev.tool), "ok"); break;
+    case "rejected": closeCard(ev.tool, "card done-no"); step("✋ اجرا نشد: " + label(ev.tool)); break;
+    case "approval_expired": step("⌛ زمان تأیید تمام شد: " + label(ev.tool), "err"); break;
+    case "tool_start": logBox = null; step("⏳ " + label(ev.tool), "", argsText(ev.args)); break;
+    case "tool_done": step("✅ انجام شد: " + label(ev.tool), "ok"); break;
+    case "error": step("❌ خطا" + (ev.tool ? " در " + label(ev.tool) : "") + ": ", "err", ev.error); break;
+    case "packed": step(`📦 ${ev.files} فایل بسته‌بندی شد (${ev.size_kb} KB)`); break;
+    case "uploaded": step("⬆️ آپلود شد"); break;
+    case "release_created": step("🚀 ریلیز ساخته شد", "", ev.release_id); break;
+    case "state": step("⏳ وضعیت دیپلوی: ", "", ev.state); break;
+    case "build_log":
+      if (!logBox) logBox = add(el("div", "logbox"));
+      logBox.textContent += ev.lines.join("\n") + "\n"; logBox.scrollTop = logBox.scrollHeight; break;
+    case "deploy_done": break;
+    case "answer": { const m = el("div", "msg bot"); m.dir = "auto"; m.innerHTML = md(ev.text); add(m); break; }
+    case "idle": setBusy(false); break;
+  }
+}
+
+const source = new EventSource("/api/events?session=" + encodeURIComponent(session));
+source.onmessage = (m) => { try { render(JSON.parse(m.data)); } catch (e) { console.error(e); } };
+source.onerror = () => { stateEl.textContent = "اتصال قطع شد؛ در حال اتصال دوباره…"; };
+source.onopen = () => { if (!send.disabled) stateEl.textContent = "آماده"; };
+
+async function ask(text) {
+  text = text.trim();
+  if (!text || send.disabled) return;
+  input.value = "";
+  setBusy(true);
+  const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session, text }) });
+  if (r.status !== 202) { const j = await r.json(); step("❌ ", "err", j.error || r.status); setBusy(false); }
+}
+document.getElementById("form").onsubmit = (e) => { e.preventDefault(); ask(input.value); };
+input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(input.value); } });
+document.querySelectorAll("#quick button").forEach((b) => b.onclick = () => ask(b.dataset.q));
+</script>
+</body>
+</html>

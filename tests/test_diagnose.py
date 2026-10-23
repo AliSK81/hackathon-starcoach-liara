@@ -127,3 +127,23 @@ def test_danger_tool_needs_typed_name(monkeypatch):
     assert cli.terminal_approver(tool, {"app": "shop"}) is False
     monkeypatch.setattr("builtins.input", lambda prompt: "shop")
     assert cli.terminal_approver(tool, {"app": "shop"}) is True
+
+
+def test_verify_ignores_old_container_lines_before_healthy(monkeypatch):
+    import time as _t
+    now = _t.time()
+    old_line = str(int((now + 5) * 1e9))   # logged after the fix was sent, before the site came back
+    logs = {"data": [{"metaData": {}, "values": [
+        [old_line, json.dumps({"_entry": "Error: connect ECONNREFUSED 127.0.0.1:5432"})]]}]}
+    client = LiaraClient("tok", "https://api.test", retry_wait=0,
+                         transport=FakeLiara({("GET", "/v2/projects/shop/logs"): (200, logs)}))
+    clock = {"t": now}
+    monkeypatch.setattr(_t, "time", lambda: clock["t"])
+
+    def sleep(s):
+        clock["t"] += s
+
+    # site answers 500 twice (old container), then 200 from the new one at now+20
+    r = verify_fix(client, "shop", ["X-DB-REFUSED"], since=now, prober=fake_probe([500, 500, 200]),
+                   wait_seconds=60, sleep=sleep)
+    assert r["fixed"] and r["signatures_still_present"] == {}

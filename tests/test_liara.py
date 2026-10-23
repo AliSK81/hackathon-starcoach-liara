@@ -66,6 +66,23 @@ def test_post_never_retries():
     assert len(t.calls) == 1
 
 
+def test_team_id_on_every_call():
+    t = FakeTransport([(200, {"projects": []}), (200, {"projects": []})])
+    c = LiaraClient("tok", "https://api.test", transport=t, retry_wait=0, team_id="T1")
+    c.list_apps()
+    c.request("GET", "/v1/projects/x/logs", params={"start": 5})
+    assert t.calls[0][1] == "https://api.test/v1/projects?teamID=T1"
+    assert t.calls[1][1] == "https://api.test/v1/projects/x/logs?start=5&teamID=T1"
+
+
+def test_team_wallet_used_for_balance():
+    body = {"user": {"balance": 285}, "team": {"balance": 1998013.9, "minCreditAmount": 20000}}
+    c = LiaraClient("tok", "https://api.test", transport=FakeTransport([(200, body)]), team_id="T1")
+    assert c.billing() == {"balance": 1998013.9, "min_credit": 20000, "account": "team"}
+    c = LiaraClient("tok", "https://api.test", transport=FakeTransport([(200, body)]))
+    assert c.billing()["balance"] == 285
+
+
 def test_missing_token():
     with pytest.raises(LiaraError):
         LiaraClient("").list_apps()

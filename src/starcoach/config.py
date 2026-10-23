@@ -28,6 +28,7 @@ def read_env_file(path: Path) -> dict[str, str]:
 class Settings:
     liara_token: str = ""
     liara_api_url: str = DEFAULT_LIARA_API_URL
+    liara_team_id: str = ""
     llm_base_url: str = ""
     llm_model: str = ""
     llm_api_key: str = ""
@@ -43,6 +44,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
     return Settings(
         liara_token=values.get("LIARA_API_TOKEN", ""),
         liara_api_url=values.get("LIARA_API_URL", DEFAULT_LIARA_API_URL).rstrip("/"),
+        liara_team_id=values.get("LIARA_TEAM_ID", ""),
         llm_base_url=values.get("LLM_BASE_URL", "").rstrip("/"),
         llm_model=values.get("LLM_MODEL", ""),
         llm_api_key=values.get("LLM_API_KEY", ""),

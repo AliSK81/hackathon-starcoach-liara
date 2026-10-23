@@ -77,6 +77,7 @@ class LiaraClient:
     log: object | None = None
     timeout: float = 30.0
     retry_wait: float = 1.0
+    team_id: str = ""  # sent as ?teamID= on every call, like the official CLI (F15)
 
     def request(self, method: str, path: str, params: dict | None = None,
                 body: dict | None = None, raw: bytes | None = None,
@@ -87,6 +88,7 @@ class LiaraClient:
             raise LiaraError("LIARA_API_TOKEN in .env is still the example placeholder. "
                              "Put your real token from the Liara console (API section) there.")
         url = self.base_url + path
+        params = {**(params or {}), **({"teamID": self.team_id} if self.team_id else {})}
         if params:
             url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
         headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json",
@@ -129,9 +131,20 @@ class LiaraClient:
         return self.request("GET", "/v1/me")
 
     def billing(self) -> dict:
-        """Balance in Toman from GET /v1/billing (F12). Only money fields are kept."""
-        user = self.request("GET", "/v1/billing").get("user", {}) or {}
-        return {"balance": user.get("balance"), "min_credit": user.get("minCreditAmount")}
+        """Balance in Toman from GET /v1/billing (F12). In a team the team's wallet pays (F15).
+        Only money fields are kept."""
+        data = self.request("GET", "/v1/billing")
+        wallet = (data.get("team") if self.team_id else None) or data.get("user") or {}
+        return {"balance": wallet.get("balance"), "min_credit": wallet.get("minCreditAmount"),
+                "account": "team" if self.team_id and data.get("team") else "personal"}
+
+    def teams(self) -> list[dict]:
+        """Teams of this token's user: GET /v2/teams (cli@14ec35f:src/commands/team/list.ts:24-25)."""
+        saved, self.team_id = self.team_id, ""
+        try:
+            return [{"id": t.get("_id"), "name": t.get("name")} for t in self.request("GET", "/v2/teams").get("teams", [])]
+        finally:
+            self.team_id = saved
 
     def plans(self) -> dict:
         """Plan catalog from /v1/me. Only `plans` is kept: the rest holds personal data and keys."""

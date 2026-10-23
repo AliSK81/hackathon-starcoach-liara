@@ -52,6 +52,22 @@ def test_events():
     assert observe.get_events(client(), "shop")[0]["text"] == "stopped due to high RAM usage"
 
 
+def test_real_event_shape_and_crash_detection():
+    # Real response (F20): newest first; kill/stop/die of one container share a second.
+    payload = {"data": [
+        {"id": "b", "status": "start", "action": "start", "time": "1792783419", "release": "r2", "tag": "v2"},
+        {"id": "a", "status": "die", "action": "die", "time": "1792783386", "release": "r1", "tag": "v1"},
+        {"id": "a", "status": "stop", "action": "stop", "time": "1792783386", "release": "r1", "tag": "v1"},
+        {"id": "a", "status": "kill", "action": "kill", "time": "1792783386", "release": "r1", "tag": "v1"},
+        {"id": "c", "status": "die", "action": "die", "time": "1792783500", "release": "r2", "tag": "v2"},
+        {"id": "d", "status": "oom", "action": "oom", "time": "1792783600", "release": "r2", "tag": "v2"},
+    ]}
+    texts = [e["text"] for e in observe.parse_events(payload)]
+    assert not any("crashed" in t and "v1" in t for t in texts)  # a requested stop is not a crash
+    assert "crashed: container exited without a stop request (release v2)" in texts
+    assert texts[-1].startswith("oom:")
+
+
 def test_metrics_against_plan_limits():
     m = observe.get_metrics(client(), "shop")
     assert m["limits"] == {"plan": "small-g2", "cpu_cores": 0.5, "ram_gb": 0.5}

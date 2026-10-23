@@ -30,7 +30,7 @@ class Rule:
 
 R = Rule
 LOG_RULES = [
-    R("X-OOM-EVENT", r"stopped due to high ram|high memory usage|oomkilled|exit code:? ?137", DEFINITIVE,
+    R("X-OOM-EVENT", r"stopped due to high ram|high memory usage|oomkilled|exit code:? ?137|^oom: container", DEFINITIVE,
       "The app ran out of memory and Liara stopped it",
       "حافظهٔ برنامه تمام شد و لیارا آن را متوقف کرد",
       "Find the memory leak, or move to a plan with more RAM.",
@@ -139,6 +139,11 @@ LOG_RULES = [
       "Fix the heavy query or loop, or raise memory_limit.",
       "کوئری یا حلقهٔ سنگین را اصلاح کنید یا memory_limit را بالا ببرید.",
       "https://www.php.net/manual/en/ini.core.php#ini.memory-limit", ("php", "laravel")),
+    R("X-CRASHLOOP", r"^crashed: container exited", STRONG,
+      "The app keeps crashing and Liara restarts it", "برنامه مدام از کار می‌افتد و لیارا آن را دوباره اجرا می‌کند",
+      "Read the first error line before each crash; that is the root cause.",
+      "اولین خطای پیش از هر توقف را بخوانید؛ علت اصلی همان است.",
+      "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/", container=True),
     R("X-CRASH", r"traceback \(most recent call last\)|php fatal error|uncaught exception|^\s+at .+\(.+:\d+:\d+\)",
       WEAK, "The app throws unhandled errors", "برنامه خطاهای مدیریت‌نشده دارد",
       "Read the first error line before each crash; that is the root cause.",
@@ -146,6 +151,7 @@ LOG_RULES = [
       "https://docs.python.org/3/library/exceptions.html", container=True),
 ]
 
+CONTAINER_IDS = {r.id for r in LOG_RULES if r.container}
 SYMPTOMS_5XX = re.compile(r"\b(?:GET|POST|PUT|DELETE|PATCH|HEAD)\s+\S+\s+(5\d\d)\b")
 
 
@@ -160,6 +166,7 @@ class Evidence:
     probe: dict | None = None
     metrics: dict | None = None
     release_state: str = ""
+    old_release_lines: int = 0  # log lines skipped because they belong to an older release
     missing: list[str] = field(default_factory=list)  # sources we could not read
 
 
@@ -220,7 +227,9 @@ def diagnose(ev: Evidence) -> dict:
         hits = [l for l in lines if rx.search(l)]
         if not hits:
             continue
-        score = rule.weight + min(len(hits), 5) * 2
+        # Count distinct lines: each failing request repeats the same error, so raw counts measure traffic (F17).
+        distinct = list(dict.fromkeys(h.strip() for h in hits))
+        score = rule.weight + min(len(distinct), 5) * 2
         if probe.get("some_5xx"):
             score += 10
         action = {"tool": rule.action, "args": {"app": ev.app}} if rule.action else None
@@ -229,7 +238,7 @@ def diagnose(ev: Evidence) -> dict:
             action = {"tool": "set_env", "args": {"app": ev.app, "key": name, "value": "<ask the user>"}}
         if rule.id in ("X-OOM-EVENT", "N-HEAP") and mem_pct is not None and mem_pct < 60:
             score -= 30  # contradicting: memory never got close to the limit
-        add(rule, score, [f"log: {h.strip()[:200]}" for h in hits[:3]] + [f"({len(hits)} matching lines)"], action)
+        add(rule, score, [f"log: {h[:200]}" for h in distinct[:3]] + [f"({len(hits)} matching lines)"], action)
 
     if not ev.turned_on:
         add(Rule("X-OFF", "", DEFINITIVE, "The app is turned off", "برنامه خاموش است",
@@ -262,7 +271,7 @@ def diagnose(ev: Evidence) -> dict:
             {"tool": "resize_app", "args": {"app": ev.app}})
 
     # 502 everywhere with no specific cause in the logs: the proxy cannot reach the app.
-    if probe.get("all_502") and not any(c.id != "X-CRASH" for c in found):
+    if probe.get("all_502") and not any(c.id not in CONTAINER_IDS for c in found):
         add(Rule("X-PORT", "", STRONG, "Liara cannot reach the app (wrong port or the app crashed at start)",
                  "لیارا به برنامه نمی‌رسد (پورت اشتباه یا crash هنگام شروع)",
                  "Make the app listen on 0.0.0.0 and the port set in Liara; check startup logs.",
@@ -277,7 +286,7 @@ def diagnose(ev: Evidence) -> dict:
 
     # 5xx seen but no specific signature: say so instead of guessing.
     access_5xx = [l for l in ev.log_lines if SYMPTOMS_5XX.search(l)]
-    specific = [c for c in found if c.id != "X-CRASH"]
+    specific = [c for c in found if c.id not in CONTAINER_IDS]
     if (probe.get("some_5xx") or access_5xx) and not specific:
         add(Rule("X-APP-ERROR", "", WEAK, "The app returns server errors, cause not identified from logs",
                  "برنامه خطای سرور می‌دهد ولی علت از لاگ‌ها مشخص نیست",
@@ -286,9 +295,21 @@ def diagnose(ev: Evidence) -> dict:
                  "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"),
             WEAK + 20, [f"{len(access_5xx)} access-log lines with 5xx"] if access_5xx else ["probe saw 5xx"])
 
+    # Causal chain (research 06 §6.2): a missing setting is the root of the connection errors it causes.
+    by_id = {c.id: c for c in found}
+    root = by_id.get("X-ENV-MISSING")
+    if root:
+        for sid in ("X-DB-REFUSED", "X-DB-TIMEOUT", "X-DNS"):
+            symptom = by_id.get(sid)
+            if symptom:
+                root.score = max(root.score, symptom.score) + 20
+                root.confidence = confidence(root.score)
+                root.evidence.append(f"explains: {symptom.title.lower()} ({sid})")
+                symptom.evidence.insert(0, f"probably caused by: {root.title.lower()} (X-ENV-MISSING)")
+
     # Container rule: a crash symptom is never ranked above a specific cause.
     if specific:
-        found = [c for c in found if c.id != "X-CRASH"]
+        found = [c for c in found if c.id not in CONTAINER_IDS]
     found.sort(key=lambda c: c.score, reverse=True)
     # The best cause is always reported (with its confidence) so a weak but real signal is not hidden;
     # further causes only when reasonably likely.
@@ -301,7 +322,7 @@ def diagnose(ev: Evidence) -> dict:
     return {"app": ev.app, "summary": summary,
             "causes": [c.to_dict() for c in ranked],
             "probe": ev.probe, "memory_peak_pct": mem_pct, "cpu_peak_pct": cpu_pct,
-            "missing_evidence": ev.missing,
+            "missing_evidence": ev.missing, "old_release_lines_skipped": ev.old_release_lines,
             "verify_steps": ["re-probe the site 5 times: all 2xx", "no new matching error lines after the fix",
                              "no new 'high RAM' or restart events", "memory below 80% of the plan"]}
 
@@ -317,33 +338,39 @@ def gather(client, app: str, minutes: int = 30, probe_tries: int = 5, prober=Non
         ev.turned_on = bool(project.get("scale", 1))
     except Exception as exc:
         ev.missing.append(f"app details: {exc}")
-    for name, fetch in (("logs", lambda: observe.get_logs(client, app, minutes, limit=400)),
-                        ("events", lambda: observe.get_events(client, app, max(minutes, 120)))):
-        try:
-            texts = [l["text"] for l in fetch()]
-            if name == "logs":
-                ev.log_lines = texts
-            else:
-                ev.events = texts
-        except Exception as exc:
-            ev.missing.append(f"{name}: {exc}")
+    current = ""
+    try:
+        releases = client.request("GET", f"/v1/projects/{app}/releases", params={"page": 1, "count": 1})
+        items = releases.get("releases") or []
+        if items:
+            ev.release_state = (items[0] or {}).get("state", "")
+            current = (items[0] or {}).get("_id", "")
+    except Exception as exc:
+        ev.missing.append(f"releases: {exc}")
+    try:
+        lines = observe.get_logs(client, app, minutes, limit=400)
+        # Lines from older releases are history: a fix (new deploy or env change) makes a new release (F20).
+        fresh = [l for l in lines if not current or not l.get("release") or l["release"] == current]
+        ev.old_release_lines = len(lines) - len(fresh)
+        ev.log_lines = [l["text"] for l in fresh]
+    except Exception as exc:
+        ev.missing.append(f"logs: {exc}")
+    try:
+        ev.events = [e["text"] for e in observe.get_events(client, app, max(minutes, 120))
+                     if not current or not e.get("release") or e["release"] == current]
+    except Exception as exc:
+        ev.missing.append(f"events: {exc}")
     try:
         ev.metrics = observe.get_metrics(client, app, minutes)
     except Exception as exc:
         ev.missing.append(f"metrics: {exc}")
-    try:
-        releases = client.request("GET", f"/v1/projects/{app}/releases", params={"page": 1, "count": 1})
-        items = releases.get("releases") or []
-        ev.release_state = (items[0] or {}).get("state", "") if items else ""
-    except Exception as exc:
-        ev.missing.append(f"releases: {exc}")
     url = observe.app_url(app)
     ev.probe = (prober or observe.probe)(url, tries=probe_tries).to_dict()
     return ev
 
 
 def verify_fix(client, app: str, cause_ids: list[str], since: float, probe_tries: int = 5,
-               prober=None, wait_seconds: float = 90, sleep=None) -> dict:
+               prober=None, wait_seconds: float = 90, sleep=None, log_delay: float = 3) -> dict:
     """After a fix: wait until the site answers (the app may be restarting), re-probe,
     and look for the old error signatures in logs written after `since`."""
     import time as _time
@@ -355,16 +382,22 @@ def verify_fix(client, app: str, cause_ids: list[str], since: float, probe_tries
     url = observe.app_url(app)
     deadline = _time.monotonic() + wait_seconds
     waited = 0
+    healthy_at = None
     while _time.monotonic() < deadline:
         if prober(url, tries=1).to_dict()["ok_ratio"] == 1:
+            healthy_at = _time.time()
             break
         sleep(10)
         waited += 10
     probe = prober(url, tries=probe_tries).to_dict()
     probe["waited_seconds"] = waited
+    sleep(log_delay)  # let the probe requests reach the log stream
+    # Only lines written once the site answered again count. Until the restart finishes, the old
+    # container keeps serving and logging the old error (F18).
+    cutoff = max(since, (healthy_at - 1) if healthy_at else since)
     minutes = max(1, int((_time.time() - since) / 60) + 1)
     try:
-        lines = [l for l in observe.get_logs(client, app, minutes, limit=400) if l["ts"] >= since]
+        lines = [l for l in observe.get_logs(client, app, minutes, limit=400) if l["ts"] >= cutoff]
     except Exception as exc:
         lines, probe["log_error"] = [], str(exc)
     rules = {r.id: r for r in LOG_RULES}

@@ -25,7 +25,7 @@ def cmd_version(args, settings, log) -> int:
 
 
 def _client(settings, log) -> LiaraClient:
-    return LiaraClient(settings.liara_token, settings.liara_api_url, log=log)
+    return LiaraClient(settings.liara_token, settings.liara_api_url, log=log, team_id=settings.liara_team_id)
 
 
 def cmd_check(args, settings, log) -> int:
@@ -35,9 +35,23 @@ def cmd_check(args, settings, log) -> int:
     print(f"Connected to Liara as {user.get('fullname') or 'unknown user'}. Apps: {len(apps)}.")
     try:
         bal = client.billing()
-        print(f"Balance: {bal['balance']:,.0f} Toman.")
+        print(f"Balance ({bal['account']} account): {bal['balance']:,.0f} Toman.")
     except LiaraError as exc:
         print(f"Balance: not available ({exc}).")
+    teams = client.teams()
+    if teams and not settings.liara_team_id:
+        print("You are in teams: " + ", ".join(f"{t['name']} ({t['id']})" for t in teams)
+              + ". Set LIARA_TEAM_ID in .env to work inside a team.")
+    elif settings.liara_team_id:
+        name = next((t["name"] for t in teams if t["id"] == settings.liara_team_id), "unknown team")
+        print(f"Team: {name}.")
+    return 0
+
+
+def cmd_teams(args, settings, log) -> int:
+    for t in _client(settings, log).teams():
+        mark = " (in use)" if t["id"] == settings.liara_team_id else ""
+        print(f"{t['id']}  {t['name']}{mark}")
     return 0
 
 
@@ -426,6 +440,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_version)
     p = sub.add_parser("check", help="test the Liara token and connection")
     p.set_defaults(func=cmd_check)
+    p = sub.add_parser("teams", help="list your Liara teams (use one with LIARA_TEAM_ID)")
+    p.set_defaults(func=cmd_teams)
     p = sub.add_parser("apps", help="list your Liara apps")
     p.set_defaults(func=cmd_apps)
     p = sub.add_parser("status", help="show one app's state and instances")

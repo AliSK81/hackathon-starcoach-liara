@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import statistics
 import time
@@ -53,8 +54,10 @@ def flatten_streams(payload: dict) -> list[dict]:
 def get_logs(client: LiaraClient, app: str, minutes: int = 30, errors_only: bool = False,
              limit: int = 200) -> list[dict]:
     start = int(time.time()) - minutes * 60
+    # The endpoint returns one page of ~100 lines. "forward" gives the oldest page after `start`;
+    # "backward" gives the newest, which is what monitoring and diagnosis need (F19).
     payload = client.request("GET", f"/v2/projects/{_q(app)}/logs",
-                             params={"start": start, "direction": "forward"})
+                             params={"start": start, "direction": "backward"})
     lines = flatten_streams(payload)
     if errors_only:
         lines = [l for l in lines if l["type"] == "stderr" or ERROR_RE.search(l["text"])]
@@ -65,7 +68,36 @@ def get_events(client: LiaraClient, app: str, minutes: int = 24 * 60) -> list[di
     end = int(time.time())
     payload = client.request("GET", f"/v1/projects/{_q(app)}/events",
                              params={"start": end - minutes * 60, "end": end})
-    return flatten_streams(payload)
+    return parse_events(payload)
+
+
+def parse_events(payload: dict) -> list[dict]:
+    """Real shape (F20): {data: [{id, status, action, time, release, tag}]} = container lifecycle
+    (create, start, kill, stop, die, oom). A `die` with no `kill` for the same container is a crash.
+    The documented stream shape is also accepted."""
+    items = (payload or {}).get("data", []) or []
+    if items and isinstance(items[0], dict) and "values" in items[0]:
+        return flatten_streams(payload)
+    events = sorted((e for e in items if isinstance(e, dict)), key=lambda e: _ts_seconds(e.get("time", 0)))
+    # kill, stop and die of one container often share a second, and Liara lists them newest first,
+    # so pair them by container id within a window instead of trusting the order (F20).
+    kills: dict = {}
+    for e in events:
+        if (e.get("action") or e.get("status")) == "kill":
+            kills.setdefault(e.get("id"), []).append(_ts_seconds(e.get("time", 0)))
+    out = []
+    for e in events:
+        action = str(e.get("action") or e.get("status") or "")
+        ts = _ts_seconds(e.get("time", 0))
+        text = f"{action} (release {e.get('tag') or e.get('release') or '?'})"
+        requested = any(abs(ts - k) <= 30 for k in kills.get(e.get("id"), []))
+        if action == "die" and not requested:
+            text = f"crashed: container exited without a stop request (release {e.get('tag', '?')})"
+        if action == "oom":
+            text = f"oom: container ran out of memory (release {e.get('tag', '?')})"
+        out.append({"ts": ts, "type": "event", "text": text, "action": action,
+                    "tag": e.get("tag"), "release": e.get("release")})
+    return out
 
 
 def _series_stats(result: list[dict]) -> list[dict]:
@@ -133,10 +165,18 @@ class ProbeResult:
                 "server_errors": sum(1 for s in self.statuses if s >= 500)}
 
 
+def _probe_opener():
+    """The probe measures what visitors see, so it connects directly and ignores HTTP(S)_PROXY (D8).
+    A VPN proxy may not reach Iranian hosts at all (F16). STARCOACH_PROBE_PROXY=1 uses the proxy."""
+    if os.environ.get("STARCOACH_PROBE_PROXY") == "1":
+        return urllib.request.build_opener()
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def http_get(url: str, timeout: float) -> int:
     req = urllib.request.Request(url, headers={"User-Agent": "starcoach-probe"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with _probe_opener().open(req, timeout=timeout) as r:
             r.read(1024)
             return r.status
     except urllib.error.HTTPError as e:

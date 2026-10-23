@@ -33,7 +33,7 @@
 | 5 | Diagnose and fix, with approval and re-check | done | [phase-5](phases/phase-5-diagnose.md) |
 | 6 | Web chat UI: approval cards and status | done | [phase-6](phases/phase-6-web.md) |
 | 7 | Automation: watch loop, domain guide | done | [phase-7](phases/phase-7-automation.md) |
-| 8 | Reviewer doc, audit, tag | in progress | — |
+| 8 | Reviewer doc, audit, tag | done | PROGRESS changes 19–20 |
 
 ## Requirement → phase
 

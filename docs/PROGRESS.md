@@ -2,7 +2,7 @@
 
 ## Status board
 
-- **Current phase:** 8 — audit and tag. Phases 0–7 are done and checked on the real Liara and the real LLM.
+- **Current phase:** all phases done; `v1.0.0` tagged. Now improving the weakest score items.
 - **Live / working:** demo app `starcoach-shop` on Liara (team «لیارا», small-g2, healthy). The full live scenario passes all 5 checks (`results/live-scenario.json`). 84 offline tests pass. Diagnosis eval 100% on 34 incidents plus the real incident (after F17).
 
 ### What we need from the user
@@ -490,3 +490,21 @@ Not done yet:
 
 Next change idea:
 - Fresh-clone check, then tag `v1.0.0`.
+
+### Change 20 — Release v1.0.0 — 2026-10-23
+Phase: 8, step 4
+How to see it: `git checkout v1.0.0 && uv sync && uv run pytest -q`
+Proof it works: a fresh clone of GitHub `main` at 9a96ff2 → `uv sync` → `pytest -q` with the HTTP(S) proxy pointed at a dead port: 84 passed; `starcoach eval` reproduces 100% on all 3 sets. Audit 1 (Change 19) maps every requirement to shipped work with proof. `starcoach version` → 1.0.0. The tag `v1.0.0` is on commit 5cdc89a (the version bump). This entry and the roadmap row were added just after it, because a locked `starcoach.exe` (a web server still running) stopped the scripted doc update.
+
+Research: none
+Questions: none
+Decisions: none
+
+Shipped:
+- Version 1.0.0 and git tag `v1.0.0`.
+
+Not done yet:
+- The open gaps listed in Change 19.
+
+Next change idea:
+- Weakest score items: a real high-memory incident on the demo app (`LEAK_MB`) to test the S-MEM / OOM rules live.

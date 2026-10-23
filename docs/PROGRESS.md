@@ -3,14 +3,14 @@
 ## Status board
 
 - **Current phase:** 8 — audit. Phases 1–7 are built and tested offline. Every real-API proof waits for `.env` (see the table below).
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 74 offline tests pass. A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 75 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
 
 ### What we need from the user
 
 | Item | Needed by phase | Status |
 |---|---|---|
-| `LIARA_API_TOKEN` in `.env` (Liara console → API) | 1 | asked |
-| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` in `.env` | 2 | asked |
+| `LIARA_API_TOKEN` in `.env` (Liara console → API) — `.env` still has the example value | 1 | asked again |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` in `.env` | 2 | done |
 
 ## How to work on the next change
 
@@ -195,7 +195,7 @@ Next change idea:
 ### Change 8 — Diagnosis engine, fix tools and fix verification — 2026-10-22
 Phase: 5, steps 1–6
 How to see it: `uv run starcoach eval`; `uv run starcoach diagnose <app>` (needs the token)
-Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 74 offline tests pass. A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
+Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 75 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
 
 Research: 06 §3–6 (rules, weights, verification). 01 §4 (update-envs replaces all and restarts; encrypted values may be masked → we refuse).
 Questions: none
@@ -332,3 +332,24 @@ Not done yet:
 
 Next change idea:
 - Real runs.
+
+### Change 15 — Real LLM runs the demo scenario: 5/5 after a prompt fix — 2026-10-23
+Phase: 2 and 5, real-run steps
+How to see it: `uv run python evals/llm_scenario.py 5` (needs the LLM settings in `.env`)
+Proof it works: with the user's LLM and a simulated broken app, the first run passed. The second run failed: the model asked "do you approve?" in text instead of calling the tool. After the prompt fix: 5/5 runs passed, median 12.6 s, saved in `results/llm-scenario.json`. In each run: `diagnose_app` comes first; the answer is in Persian with causes, confidence and evidence; it asks for the env value instead of inventing one; `set_env` is the only approval; the value is masked; `verify_fix` runs after the fix; the app is fixed.
+
+Research: none
+Questions: none
+Decisions: F8, F9, F10
+
+Shipped:
+- `evals/llm_scenario.py`: repeatable agent-behaviour eval with 5 checks per run.
+- Prompt: the model must not ask for confirmation in text; the approval card does that.
+- Answers are trimmed (they started with blank lines).
+- `check` and the LLM client name example placeholders in `.env` plainly (with a test).
+
+Not done yet:
+- Everything on the real Liara API: `.env` still has the example token (F10).
+
+Next change idea:
+- With the real token: `check`, create and deploy the demo app, run the live scenario.

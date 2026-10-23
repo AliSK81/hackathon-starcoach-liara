@@ -69,3 +69,8 @@ def test_post_never_retries():
 def test_missing_token():
     with pytest.raises(LiaraError):
         LiaraClient("").list_apps()
+
+
+def test_placeholder_token_is_named():
+    with pytest.raises(LiaraError, match="placeholder"):
+        LiaraClient("fake-liara-token").list_apps()

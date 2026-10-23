@@ -83,6 +83,9 @@ class LiaraClient:
                 content_type: str | None = None, timeout: float | None = None):
         if not self.token:
             raise LiaraError("No Liara token. Set LIARA_API_TOKEN in .env.")
+        if self.token.startswith("fake-"):
+            raise LiaraError("LIARA_API_TOKEN in .env is still the example placeholder. "
+                             "Put your real token from the Liara console (API section) there.")
         url = self.base_url + path
         if params:
             url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})

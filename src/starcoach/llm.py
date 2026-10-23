@@ -28,6 +28,8 @@ class ChatLLM:
         """Return the assistant message: {"role", "content", "tool_calls"?}."""
         if not (self.base_url and self.model):
             raise LLMError("No LLM configured. Set LLM_BASE_URL, LLM_MODEL and LLM_API_KEY in .env.")
+        if self.api_key.startswith("fake-") or "example.com" in self.base_url:
+            raise LLMError("The LLM settings in .env are still the example placeholders.")
         body = {"model": self.model, "messages": messages, "temperature": 0.2}
         if tools:
             body["tools"] = tools

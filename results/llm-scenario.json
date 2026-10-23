@@ -1,0 +1,378 @@
+{
+  "runs": 5,
+  "passed": 5,
+  "model": "qwen3.8-27b",
+  "median_seconds": 12.6,
+  "results": [
+    {
+      "date": "2026-10-23",
+      "model": "qwen3.8-27b",
+      "seconds": 14.0,
+      "turns": [
+        "سایت starcoach-shop خطای ۵۰۰ می‌دهد. مشکل چیه؟",
+        "مقدار SHOP_DB_URL را memory:// بگذار و درستش کن."
+      ],
+      "answers": [
+        "پیداش کردم. سایت ۵ بار امتحان شد و هر ۵ بار خطای ۵۰۰ داد.\n\n**مشکل اصلی:** برنامه نمی‌تونه به پایگاه داده (دیتابیس) وصل بشه.\n\nدو دلیل مرتبط پیدا شد:\n\n1. **متغیر `SHOP_DB_URL` تنظیم نشده** (احتمال ۵۴٪)\n   - چون این متغیر خالیه، برنامه به‌صورت پیش‌فرض به `127.0.0.1:5432` وصل می‌شه.\n2. **اتصال به دیتابیس رد شده** (احتمال ۵۴٪)\n   - خطا: `connect ECONNREFUSED 127.0.0.1:5432` یعنی اون آدرس در دسترس نیست.\n\n**راه‌حل:** باید آدرس درست دیتابیس رو توی متغیر `SHOP_DB_URL` وارد کنیم.\n\nبرای این کار به من این اطلاعات رو بده:\n- **آدرس دیتابیس** (host) — معمولاً از شبکهٔ خصوصی لیرا استفاده می‌شه\n- **پورت** (معمولاً ۵۴۳۲)\n- **نام دیتابیس، کاربر و رمز** (اگه فرمت کامل URL می‌خوای)\n\nفرمت معمولی این متغیر این شکلیه:\n```\npostgres://کاربر:رمز@آدرس:پورت/نام_دیتابیس\n```\n\nوقتی این مقادیر رو دادی، متغیر رو تنظیم می‌کنم و بعد بررسی می‌کنم سایت درست شده یا نه.",
+        "✅ درست شد!\n\nبررسی بعد از تغییر:\n- سایت ۵ بار امتحان شد → **هر ۵ بار کد ۲۰۰ (موفق)**\n- خطای ۵۰۰: **صفر**\n- خطاهای قبلی توی لاگ: **دیگه نیستن**\n\nسایت `starcoach-shop.liara.run` الان سالم کار می‌کنه. 🎉\n\nفقط یه نکته: مقدار `memory://` یعنی دیتابیس توی حافظه‌ست. یعنی هر بار که برنامه ری‌استارت بشه، اطلاعات پاک می‌شه. اگه این یه فروشگاه واقعی با داده‌های مهمه، بهتره بعداً به یه دیتابیس دائمی وصلش کنیم. بگو تا کمکت کنم."
+      ],
+      "steps": [
+        {
+          "event": "tool_start",
+          "tool": "diagnose_app",
+          "args": {
+            "app": "starcoach-shop"
+          },
+          "error": null
+        },
+        {
+          "event": "approved",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "verify_fix",
+          "args": {
+            "app": "starcoach-shop",
+            "cause_ids": [
+              "X-ENV-MISSING",
+              "X-DB-REFUSED"
+            ],
+            "since": 1792782143
+          },
+          "error": null
+        }
+      ],
+      "approvals": [
+        {
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          }
+        }
+      ],
+      "checks": {
+        "diagnosed_first": true,
+        "only_change_tool_needed_approval": true,
+        "secret_value_masked": true,
+        "verified_after_fix": true,
+        "app_fixed": true
+      },
+      "passed": true
+    },
+    {
+      "date": "2026-10-23",
+      "model": "qwen3.8-27b",
+      "seconds": 12.2,
+      "turns": [
+        "سایت starcoach-shop خطای ۵۰۰ می‌دهد. مشکل چیه؟",
+        "مقدار SHOP_DB_URL را memory:// بگذار و درستش کن."
+      ],
+      "answers": [
+        "مشکل رو پیدا کردم. سایت هر ۵ بار که تستش کردم خطای ۵۰۰ داد.\n\n**دلیل اصلی: برنامه به پایگاه داده وصل نمی‌شه.**\n\nدو نشانه از لاگ‌ها:\n- `SHOP_DB_URL` تنظیم نشده، پس برنامه از آدرس پیش‌فرض `127.0.0.1:5432` استفاده می‌کنه.\n- `connect ECONNREFUSED 127.0.0.1:5432` یعنی به اون آدرس دسترسی نداره و اتصال رد شده.\n\nبه‌عبارت ساده: برنامه نمی‌دونه پایگاه داده‌ش کجاست، پس به آدرس اشتباهی وصل می‌شه و سایت خطا می‌ده.\n\n**راه‌حل:** باید متغیر `SHOP_DB_URL` رو با آدرس درست پایگاه داده تنظیم کنیم.\n\nبرای این کار به آدرس پایگاه داده‌ات نیاز دارم. معمولاً به این شکل هست:\n`postgres://کاربر:رمز@آدرس:پورت/نام_پایگاه`\n\nاین آدرس رو از کجا می‌تونی پیدا کنی؟\n- اگه پایگاه داده‌ات روی لیارا هست، از پنل لیارا (بخش Private Network) آدرس شبکهٔ خصوصی رو بگیر.\n- اگه پایگاه داده‌ات جای دیگه‌ای هست، آدرس کاملش رو بفرست.\n\nآدرس رو بفرست تا متغیر رو تنظیم کنم و بعد بررسی کنم مشکل حل شده یا نه.",
+        "درست شد. ✅\n\nنتیجهٔ بررسی:\n- سایت ۵ بار تست شد، هر ۵ بار **۲۰۰** (موفق) برگشت. قبلاً هر ۵ بار ۵۰۰ بود.\n- خطاهای قبلی (`ECONNREFUSED` و `SHOP_DB_URL is not set`) از لاگ‌ها پاک شدن.\n- خطای سرور: **۰**\n\nسایت `starcoach-shop.liara.run` الان سالم کار می‌کنه.\n\nیک نکته: مقدار `memory://` یعنی داده‌ها توی حافظه نگه داشته می‌شن و با هر ری‌استارت پاک می‌شن. اگه فروشگاهت داده‌های مهمی داره (سفارش، کاربر و...)، بهتره بعداً به یه پایگاه دادهٔ واقعی وصلش کنیم تا اطلاعات از بین نره. هر وقت خواستی کمکت می‌کنم."
+      ],
+      "steps": [
+        {
+          "event": "tool_start",
+          "tool": "diagnose_app",
+          "args": {
+            "app": "starcoach-shop"
+          },
+          "error": null
+        },
+        {
+          "event": "approved",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "verify_fix",
+          "args": {
+            "app": "starcoach-shop",
+            "cause_ids": [
+              "X-ENV-MISSING",
+              "X-DB-REFUSED"
+            ],
+            "since": 1792782156
+          },
+          "error": null
+        }
+      ],
+      "approvals": [
+        {
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          }
+        }
+      ],
+      "checks": {
+        "diagnosed_first": true,
+        "only_change_tool_needed_approval": true,
+        "secret_value_masked": true,
+        "verified_after_fix": true,
+        "app_fixed": true
+      },
+      "passed": true
+    },
+    {
+      "date": "2026-10-23",
+      "model": "qwen3.8-27b",
+      "seconds": 11.9,
+      "turns": [
+        "سایت starcoach-shop خطای ۵۰۰ می‌دهد. مشکل چیه؟",
+        "مقدار SHOP_DB_URL را memory:// بگذار و درستش کن."
+      ],
+      "answers": [
+        "مشکل رو پیدا کردم. سایت هر ۵ بار که تستش کردم، خطای ۵۰۰ داد.\n\n**علت اصلی: برنامه به پایگاه داده وصل نمی‌شه.**\n\nدو نشونه از لاگ‌ها:\n- متغیر `SHOP_DB_URL` تنظیم نشده، پس برنامه به‌جای آدرس درست، به `127.0.0.1:5432` (یعنی خودِ سرور) وصل می‌خواد.\n- نتیجه: `ECONNREFUSED` — یعنی هیچ پایگاه داده‌ای اونجا نیست و اتصال رد می‌شه.\n\nبه‌همین‌دلیل هر صفحه با خطای ۵۰۰ برمی‌گرده.\n\n**راه‌حل:** باید آدرس درست پایگاه داده رو به‌صورت متغیر `SHOP_DB_URL` به برنامه بدیم.\n\nمن این آدرس رو ندارم. لطفاً بگو:\n- آدرس (host) و پورت پایگاه داده‌ات چیه؟ (معمولاً یه رشته مثل `postgres://user:pass@host:5432/dbname`)\n\nاگه هم پایگاه داده‌ات روی Liara هست، بگو تا آدرس شبکهٔ خصوصی‌اش رو پیدا کنم.\n\nبه‌محض اینکه مقدار رو بدی، تنظیمش می‌کنم و بعد از کار بودنش مطمئن می‌شم.",
+        "درست شد. ✅\n\nبررسی نهایی:\n- سایت ۵ بار تست شد، هر ۵ بار کد **۲۰۰** (موفق) برگردوند.\n- خطای ۵۰۰ دیگه نیست.\n- خطاهای قبلی هم از لاگ‌ها پاک شدن.\n\n**یه نکته مهم:** `memory://` یعنی پایگاه داده توی حافظهٔ موقت می‌مونه. یعنی:\n- هر بار که برنامه ری‌استارت بشه، **همهٔ داده‌ها پاک می‌شن**.\n- برای فروشگاه واقعی مناسب نیست، چون سفارش‌ها و محصولات ذخیره نمی‌مونن.\n\nاگه این فقط برای تسته، عالیه. ولی اگه می‌خوای فروشگاه واقعاً کار کنه، بهتره بعداً یه پایگاه دادهٔ دائمی (مثل PostgreSQL) وصل کنیم. هر وقت خواستی بگو تا کمکت کنم."
+      ],
+      "steps": [
+        {
+          "event": "tool_start",
+          "tool": "diagnose_app",
+          "args": {
+            "app": "starcoach-shop"
+          },
+          "error": null
+        },
+        {
+          "event": "approved",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "verify_fix",
+          "args": {
+            "app": "starcoach-shop",
+            "cause_ids": [
+              "X-ENV-MISSING",
+              "X-DB-REFUSED"
+            ],
+            "since": 1792782169
+          },
+          "error": null
+        }
+      ],
+      "approvals": [
+        {
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          }
+        }
+      ],
+      "checks": {
+        "diagnosed_first": true,
+        "only_change_tool_needed_approval": true,
+        "secret_value_masked": true,
+        "verified_after_fix": true,
+        "app_fixed": true
+      },
+      "passed": true
+    },
+    {
+      "date": "2026-10-23",
+      "model": "qwen3.8-27b",
+      "seconds": 12.8,
+      "turns": [
+        "سایت starcoach-shop خطای ۵۰۰ می‌دهد. مشکل چیه؟",
+        "مقدار SHOP_DB_URL را memory:// بگذار و درستش کن."
+      ],
+      "answers": [
+        "مشکل رو پیدا کردم. سایت در ۵ بار تست، هر بار خطای ۵۰۰ داد. دلیلش اینه که برنامه نمی‌تونه به پایگاه داده (دیتابیس) وصل بشه.\n\nدو دلیل مرتبط پیدا شد:\n\n**۱. یک متغیر محیطی تنظیم نشده (احتمال ۵۴٪)**\n- مدرک: در لاگ نوشته `SHOP_DB_URL is not set; using default 127.0.0.1:5432`\n- یعنی آدرس دیتابیس مشخص نشده و برنامه داره به آدرس پیش‌فرض (که اشتباهه) وصل می‌شه.\n\n**۲. اتصال به دیتابیس رد شده (احتمال ۵۴٪)**\n- مدرک: `Error: connect ECONNREFUSED 127.0.0.1:5432`\n- یعنی برنامه به `127.0.0.1:5432` وصل می‌شه ولی کسی اونجا نیست.\n\nهر دو به یک ریشه برمی‌گردن: باید متغیر `SHOP_DB_URL` رو با آدرس درست دیتابیس تنظیم کنیم.\n\nبرای درستش کردن، من می‌تونم متغیر `SHOP_DB_URL` رو برای برنامه تنظیم کنم. فقط یه چیز رو ازت می‌خوام:\n\n**آدرس دیتابیس چیه؟** یعنی مقدار `SHOP_DB_URL` (معمولاً شبیه `postgres://user:pass@host:5432/dbname`).\n\nاگه دیتابیس رو جداگانه در لیارا داری، بگو تا آدرس شبکهٔ خصوصی‌اش رو پیدا کنم. مقدارش رو بفرست تا تنظیمش کنم.",
+        "درست شد! ✅\n\nنتیجهٔ بررسی:\n- سایت در ۵ بار تست، هر بار کد **۲۰۰** (موفق) داد.\n- خطای ۵۰۰ دیگه نیست (قبلش ۵ بار خطا بود، حالا ۰).\n- خطاهای قبلی در لاگ تکرار نشدن.\n\nسایت `starcoach-shop.liara.run` الان سالمه و جواب می‌ده.\n\nیه نکته: چون دیتابیس روی `memory://` (حافظهٔ موقت) اجرا می‌شه، اطلاعات ذخیره‌شده با هر ری‌استارت پاک می‌شن. اگه بعداً خواستی اطلاعات ماندگار داشته باشی، یه دیتابیس واقعی وصل می‌کنیم."
+      ],
+      "steps": [
+        {
+          "event": "tool_start",
+          "tool": "diagnose_app",
+          "args": {
+            "app": "starcoach-shop"
+          },
+          "error": null
+        },
+        {
+          "event": "approved",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "verify_fix",
+          "args": {
+            "app": "starcoach-shop",
+            "cause_ids": [
+              "X-ENV-MISSING",
+              "X-DB-REFUSED"
+            ],
+            "since": 1792782181
+          },
+          "error": null
+        }
+      ],
+      "approvals": [
+        {
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          }
+        }
+      ],
+      "checks": {
+        "diagnosed_first": true,
+        "only_change_tool_needed_approval": true,
+        "secret_value_masked": true,
+        "verified_after_fix": true,
+        "app_fixed": true
+      },
+      "passed": true
+    },
+    {
+      "date": "2026-10-23",
+      "model": "qwen3.8-27b",
+      "seconds": 12.6,
+      "turns": [
+        "سایت starcoach-shop خطای ۵۰۰ می‌دهد. مشکل چیه؟",
+        "مقدار SHOP_DB_URL را memory:// بگذار و درستش کن."
+      ],
+      "answers": [
+        "مشکل رو پیدا کردم. سایت ۵ بار امتحان شد و هر ۵ بار خطای ۵۰۰ داد.\n\n**علت اصلی: برنامه به پایگاه داده وصل نمی‌شود.**\n\nدو نشانهٔ مرتبط داریم:\n\n1. **متغیر محیطی `SHOP_DB_URL` تنظیم نشده** (احتمال ۵۴٪)\n   - لاگ می‌گوید: `SHOP_DB_URL is not set; using default 127.0.0.1:5432`\n   - یعنی برنامه نمی‌داند پایگاه داده کجاست و به‌طور پیش‌فرض به آدرس محلی `127.0.0.1:5432` وصل می‌شود.\n\n2. **اتصال به پایگاه داده رد شده** (احتمال ۵۴٪)\n   - لاگ می‌گوید: `Error: connect ECONNREFUSED 127.0.0.1:5432`\n   - چون آدرس اشتباه است، وصل نمی‌شود و سایت خطای ۵۰۰ می‌دهد.\n\n**راه‌حل:** باید مقدار درست `SHOP_DB_URL` را در متغیرهای محیطی برنامه وارد کنیم. این آدرس معمولاً از بخش «پایگاه داده» در پنل لیارا کپی می‌شود (از شبکهٔ خصوصی استفاده می‌کند، نه 127.0.0.1).\n\nمقدار `SHOP_DB_URL` را برام بفرست تا تنظیمش کنم. (معمولاً شبیه `postgres://user:pass@host:5432/dbname` است.)\n\nنکته: لاگ‌ها و رویدادهای بیشتر این برنامه در لیارا پیدا نشد، پس این دو علت بر اساس خطاهای لاگ است.",
+        "انجام شد و درست شد. ✅\n\n- متغیر `SHOP_DB_URL` با مقدار `memory://` تنظیم شد و لیارا برنامه رو ری‌استارت کرد.\n- سایت ۵ بار امتحان شد: هر ۵ بار **۲۰۰** (قبلاً ۵ بار ۵۰۰ بود).\n- خطای ۵۰۰ دیگر نیست و خطاهای قبلی در لاگ تکرار نشده‌اند.\n\nنکته: `memory://` یعنی پایگاه داده در حافظهٔ خود برنامه ذخیره می‌شود. یعنی داده‌ها با هر ری‌استارت پاک می‌شوند. برای فروشگاه واقعی بهتر است بعداً از یک پایگاه دادهٔ دائمی (مثل PostgreSQL در لیارا) استفاده کنید تا اطلاعات مشتریان و سفارش‌ها گم نشود."
+      ],
+      "steps": [
+        {
+          "event": "tool_start",
+          "tool": "diagnose_app",
+          "args": {
+            "app": "starcoach-shop"
+          },
+          "error": null
+        },
+        {
+          "event": "approved",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          },
+          "error": null
+        },
+        {
+          "event": "tool_start",
+          "tool": "verify_fix",
+          "args": {
+            "app": "starcoach-shop",
+            "cause_ids": [
+              "X-ENV-MISSING",
+              "X-DB-REFUSED"
+            ],
+            "since": 1792782193
+          },
+          "error": null
+        }
+      ],
+      "approvals": [
+        {
+          "tool": "set_env",
+          "args": {
+            "app": "starcoach-shop",
+            "key": "SHOP_DB_URL",
+            "value": "***"
+          }
+        }
+      ],
+      "checks": {
+        "diagnosed_first": true,
+        "only_change_tool_needed_approval": true,
+        "secret_value_masked": true,
+        "verified_after_fix": true,
+        "app_fixed": true
+      },
+      "passed": true
+    }
+  ]
+}

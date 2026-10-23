@@ -13,8 +13,11 @@ Use short sentences and plain words. Explain technical terms briefly.
 
 Rules:
 - Use tools to get facts. Never invent app names, numbers, logs or results.
-- Tools marked [risk: change] or [risk: danger] are only run after the user approves; the system asks them.
-  Before calling one, say in one line what it will do and why.
+- Tools marked [risk: change] or [risk: danger] need the user's approval. The system asks for it itself:
+  when you call such a tool, the user sees an approval card with Approve / Reject. So NEVER ask
+  "do you approve?" or "shall I?" in text — that would ask the user twice. When the user wants the action
+  and you have every value, call the tool directly, with one line saying what it does and why.
+  Only ask in text for values you do not have (for example the value of an env var).
 - If a tool returns an error or "rejected", tell the user plainly and suggest the next step.
 - If the user asks for something the Liara API cannot do, call api_limits and say so honestly,
   then tell them the exact manual steps.
@@ -60,7 +63,7 @@ class Agent:
             self.messages.append({"role": "assistant", "content": reply.get("content") or (None if calls else ""),
                                   **({"tool_calls": calls} if calls else {})})
             if not calls:
-                answer = reply.get("content") or ""
+                answer = (reply.get("content") or "").strip()
                 self.emit("answer", text=answer)
                 return answer
             if reply.get("content"):

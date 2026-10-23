@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 8 — audit and tag. Phases 0–7 are done and checked on the real Liara and the real LLM.
-- **Live / working:** demo app `starcoach-shop` on Liara (team «لیارا», small-g2, healthy). The full live scenario passes all 5 checks (`results/live-scenario.json`). 83 offline tests pass. Diagnosis eval 100% on 34 incidents plus the real incident (after F17).
+- **Live / working:** demo app `starcoach-shop` on Liara (team «لیارا», small-g2, healthy). The full live scenario passes all 5 checks (`results/live-scenario.json`). 84 offline tests pass. Diagnosis eval 100% on 34 incidents plus the real incident (after F17).
 
 ### What we need from the user
 
@@ -435,3 +435,58 @@ Not done yet:
 
 Next change idea:
 - The audit against requirements.md, then the tag.
+
+### Change 19 — Audit 1 against requirements.md, line by line — 2026-10-23
+Phase: 8, step 3
+How to see it: this entry. Each line names its proof (a command, a result file, or a doc section).
+Proof it works: the table below. Before writing it, two gaps were closed in this change:
+- "choose the deployment method": `recommend` now compares deploy methods.
+- "service management": real stop → 503 → diagnose "app is turned off" 97% → start → verify 5/5 × 200 after 20 s.
+
+| Requirement | Status | Proof |
+|---|---|---|
+| Guide choice of deployment and setup method | met | `starcoach recommend examples/demo-node` (platform, port, plan, deploy methods); agent tool `recommend_setup` |
+| Review project, suggest infrastructure and plan | met, real | F11, F13: `small-g2` + `basic` ≈ 749,998 Toman/month from the real list of 42 plans |
+| Help with setup, config, deploy | met, real | `create` + `deploy` → READY in 23 s (F22) |
+| Domain setup, registrar (IRNIC) steps | met, partly real | `starcoach domain <app> <domain>`: IRNIC steps in Persian and English; the domain list endpoint was read for real; **adding a domain was not tried live (no test domain)** |
+| User does only the essential outside steps | met | limits registry (`starcoach limits`): payments, registrar NS, notifications; the agent calls `api_limits` |
+| Publish new versions | met, real | F22; failed versions are explained and the old version stays live (F25) |
+| Config and service management via APIs | met, real | `set-env` (live scenario), `restart`, `stop`/`start` (this change); `resize` offline only (it changes cost) |
+| Check status, find deploy errors | met, real | `status`, `apps`, release states PENDING→READY / FAILED (F20, F25) |
+| Automate repetitive operations | met, partly real | `watch` (real `--once`, alert `unknown → up`); dedupe, diagnosis on failure, opt-in auto-restart tested offline |
+| Health and CPU/RAM | met, real | `metrics` (units measured, F21, F24), `health` |
+| Retrieve and analyze logs | met, real | `logs`, `diagnose` (F19: newest page, release-scoped) |
+| Investigate slowness, malfunction, high usage | met; malfunction real, slowness/high usage offline | live 500 scenario; S-CPU / S-MEM rules in the eval sets (34 cases) |
+| Suggestions for performance and stability | met | every cause has a fix; Persian and English (`diagnose.py`) |
+| Take corrective action or guide the fix | met, real | `set_env` via an approval card → verified (`results/live-scenario.json`) |
+| HTTP 500: gather, check logs/status/resources, rank causes, fix, verify | met, real | `results/live-scenario.json`: diagnose (86% root cause), approved fix, verify 5/5 × 200 |
+| Human in the loop: approval for sensitive ops; low vs high risk; results visible | met, real | risk tiers read/change/danger; web card (real run); typed name for danger (`tests/test_web.py`); timeline in the UI |
+| Use Liara APIs | met, real | SOLUTION.md §3 endpoint table; every endpoint used live except resize, domain add, SSL |
+| Agent / MCP | met (agent) | `agent.py`; MCP is on the "Later" list |
+| UI | met, real | web chat (`starcoach web`) and CLI |
+| Disclose API limits | met | `starcoach limits` (9 items, Persian and English), tool `api_limits`, SOLUTION.md §5 |
+| UX: plain request, status, evaluate suggestions, approve | met, real | Persian chat; timeline; confidence and evidence per cause; approval cards |
+| Deliverable: runnable MVP with a real scenario | met, real | README; `evals/live_scenario.py` passes all 5 checks |
+| Deliverable: MD doc (architecture, Liara API connection, limits, interaction) | met | `docs/SOLUTION.md` §2, §3, §5, §4 |
+| Score 1 — integration, deploy, service management, operations | met, real | rows above |
+| Score 2 — logs, errors, causes, solutions, checking fixes | met, real | live scenario; eval 100% vs baseline 25–75%; F17 shows the real top-1 miss and its fix |
+| Score 3 — simplicity, clear suggestions, status, approvals | met, real | web UI run; LLM eval 5/5 (F9) |
+| Score 4 — monitoring, automation, secure handling, API limits | met, partly real | watch real once; secrets masked (tests); `.env` never uploaded; limits registry |
+
+Open gaps (honest):
+- No live domain add or SSL (no test domain).
+- No live resize (costs money; offline-tested).
+- Slowness diagnosis is tested on written incidents, not on a real slow app.
+
+Research: none
+Questions: none
+Decisions: none
+
+Shipped:
+- `deploy_methods` in `recommend` (with a test). Real stop/start proof. The reviewer doc results table now has the failed deploy, restart and stop/start.
+
+Not done yet:
+- The gaps above. None of them blocks a requirement: each requirement has shipped work with proof.
+
+Next change idea:
+- Fresh-clone check, then tag `v1.0.0`.

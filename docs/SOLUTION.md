@@ -18,7 +18,7 @@ This document is for reviewers. It covers the architecture, the Liara API connec
 
 | Part of the cycle | What StarCoach does | Command / tool |
 |---|---|---|
-| Choose a setup | Reads a project folder. Detects the platform (same order as the official CLI) and the port. Warns about known deploy failures. Picks the cheapest fitting plan from your account's real plan list. | `recommend`, tool `recommend_setup` |
+| Choose a setup | Reads a project folder. Detects the platform (same order as the official CLI) and the port. Warns about known deploy failures. Picks the cheapest fitting plan from your account's real plan list, with the full monthly cost. Compares deploy methods (this tool, console upload, Liara CLI, GitHub). | `recommend`, tool `recommend_setup` |
 | Create | Creates the app (after approval). | `create`, tool `create_app` |
 | Deploy / publish a new version | Packs the folder (never `.env`), uploads it, creates a release, streams build logs, and reports the final state and the reason for a failure. No Liara CLI needed. | `deploy`, tool `deploy_app` |
 | Service status | App state, instances, releases. | `apps`, `status`, tools `list_apps`, `app_status` |
@@ -179,7 +179,7 @@ Every endpoint is cited to the official OpenAPI spec or CLI source in [research]
 
 We report the first runs honestly (F6, F7). The holdout-2 loss showed two real design flaws. A confidence cut-off hid moderate causes, and one loopback signature was missing. Both were fixed. All three sets have now been used for tuning, so the honest test is the real incident below.
 
-**Tests:** 82 offline tests (`uv run pytest -q`, no network). They cover the API client, teams, the deploy flow, log and event parsing (real response shapes), diagnosis, verification with restart blips, approvals over HTTP, watch dedupe, and secret masking.
+**Tests:** 84 offline tests (`uv run pytest -q`, no network). They cover the API client, teams, the deploy flow, log and event parsing (real response shapes), diagnosis, verification with restart blips, approvals over HTTP, watch dedupe, and secret masking.
 
 ### Real runs on Liara (2026-10-23, team «لیارا», demo app `starcoach-shop`)
 
@@ -194,6 +194,9 @@ We report the first runs honestly (F6, F7). The holdout-2 loss showed two real d
 | Fix + verify (agent) | web chat → approve card → `set_env` → `verify_fix` | 5/5 × **200**, old errors gone |
 | Full live eval | `uv run python evals/live_scenario.py starcoach-shop --yes` | all 5 checks pass, 99.5 s from the user's first message to verified fix → [`results/live-scenario.json`](../results/live-scenario.json) |
 | Monitor | `starcoach watch starcoach-shop --once`, `metrics`, `logs`, `events` | alert `unknown → up`; RAM 29 MB of 512, CPU 0.02 of 0.5 cores |
+| Failed deploy | deploy a copy whose package.json names a missing package | FAILED, explained: "npm package … does not exist: starcoach-package-that-does-not-exist-xyz"; live site untouched (F25) |
+| Restart | `starcoach restart starcoach-shop` + `verify` | kill → create → start; 5/5 × 200 |
+| Stop / start | `starcoach stop` → `diagnose` → `start` → `verify` | 503 → "app is turned off" (97%) → healthy again after 20 s |
 
 **Real LLM behaviour** (`evals/llm_scenario.py`, 5 runs): 5/5 passed after one prompt fix. Before the fix, 1 of 2 runs asked "do you approve?" in text on top of the approval card (F9).
 

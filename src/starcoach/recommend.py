@@ -27,6 +27,7 @@ class Advice:
     warnings: list[str] = field(default_factory=list)
     ram_need_mb: int = 512
     plan: dict | None = None
+    deploy_methods: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -116,6 +117,30 @@ def check_project(root: Path, platform: str) -> list[str]:
     return warnings
 
 
+def deploy_methods(root: Path, platform: str) -> list[dict]:
+    """Ways to put this project on Liara, best first. Sources: research 02 (API flow, liara.json),
+    docs.liara.ir deploy guides (console zip upload, CLI, GitHub)."""
+    has_git = (root / ".git").exists()
+    methods = [
+        {"id": "starcoach", "name": "StarCoach deploy (this tool)",
+         "when": "Simplest: one command or one chat message; shows build progress, explains failures, never uploads .env.",
+         "how": f"starcoach deploy {root} --app <name>"},
+        {"id": "console", "name": "Liara console upload",
+         "when": "No tools at all: zip the folder and drag it into the app page (docs: nodejs/how-tos/deploy-app).",
+         "how": "console.liara.ir → app → Deploy → upload zip"},
+        {"id": "cli", "name": "Liara CLI",
+         "when": "You already use Node.js tools and want liara.json settings in the repo.",
+         "how": "npm i -g @liara/cli && liara deploy"},
+    ]
+    if has_git:
+        methods.append({"id": "github", "name": "GitHub (CI)",
+                        "when": "The project is in git: deploy on every push from GitHub Actions with the CLI.",
+                        "how": "a workflow step running `liara deploy` with LIARA_API_TOKEN as a secret"})
+    if platform == "docker":
+        methods[0]["when"] += " Your Dockerfile is built on Liara."
+    return methods
+
+
 def pick_plan(plans: dict, ram_need_mb: int, bundles: dict | None = None) -> dict | None:
     """Cheapest plan whose RAM meets the need.
 
@@ -173,6 +198,7 @@ def recommend(root: Path, plans: dict | None = None, bundles: dict | None = None
                     ram_need_mb=RAM_NEED_MB.get(platform, 512))
     advice.reasons.append(f"Port {advice.port} is the Liara default for {platform}.")
     advice.warnings = check_project(root, platform)
+    advice.deploy_methods = deploy_methods(root, platform)
     if plans:
         advice.plan = pick_plan(plans, advice.ram_need_mb, bundles)
         if advice.plan:

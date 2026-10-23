@@ -106,6 +106,9 @@ def cmd_recommend(args, settings, log) -> int:
               + f" = ~{p['total_per_month']:,} Toman/month (~{p['total_per_hour']:,.0f}/hour)")
     elif not plans:
         print("Plan: set LIARA_API_TOKEN to get a plan from your account's real plan list.")
+    print("Ways to deploy (best first):")
+    for m in advice.deploy_methods:
+        print(f"  - {m['name']}: {m['when']}")
     for w in advice.warnings:
         print(f"  ⚠️  {w}")
     return 0

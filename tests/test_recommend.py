@@ -45,6 +45,14 @@ def test_warnings_catch_known_failures(tmp_path):
     assert "start" in w and ".env" in w
 
 
+def test_deploy_methods_offered(tmp_path):
+    make(tmp_path, {"index.html": "<h1>hi</h1>"})
+    ids = [m["id"] for m in recommend(tmp_path).deploy_methods]
+    assert ids[:3] == ["starcoach", "console", "cli"] and "github" not in ids
+    (tmp_path / ".git").mkdir()
+    assert "github" in [m["id"] for m in recommend(tmp_path).deploy_methods]
+
+
 def test_demo_app_has_no_warnings():
     a = recommend(DEMO)
     assert (a.platform, a.port, a.warnings) == ("node", 3000, [])

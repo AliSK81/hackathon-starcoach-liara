@@ -73,7 +73,11 @@ def cmd_status(args, settings, log) -> int:
     app = client.get_app(args.app)
     print(f"App: {app.get('project_id', args.app)}  platform: {app.get('type')}  plan: {app.get('planID')}")
     print(f"Status: {app.get('status')}  turned on: {'yes' if app.get('scale') else 'no'}")
-    applets = client.applets(args.app)
+    try:
+        applets = client.applets(args.app)
+    except LiaraError:
+        print("  instances: not available (Liara's instance endpoint returned an error)")
+        return 0
     items = applets if isinstance(applets, list) else applets.get("applets", [])
     for it in items:
         print(f"  instance {it.get('name', '?')}: {it.get('state', '?')} {it.get('reason') or ''}".rstrip())

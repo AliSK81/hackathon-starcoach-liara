@@ -70,7 +70,12 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
 
     def app_status(app: str) -> dict:
         details = clean_app(client.get_app(app))
-        applets = client.applets(app)
+        try:
+            applets = client.applets(app)
+        except Exception:
+            # Liara's /applets answers 500 for these apps (F28); the app details are still useful.
+            details["instances"] = "not available: Liara's instance endpoint returned an error; use probe_site and get_events"
+            return details
         items = applets if isinstance(applets, list) else applets.get("applets", [])
         details["instances"] = [{"name": i.get("name"), "state": i.get("state"),
                                  "reason": i.get("reason")} for i in items]

@@ -77,3 +77,10 @@ def test_tool_error_goes_back_to_llm():
     assert agent.ask("status of nope") == "That app does not exist."
     assert "error" in events
     assert "Not found" in json.loads(llm.seen[1][-1]["content"])["error"]
+
+
+def test_app_status_survives_instance_endpoint_error():
+    routes = {**ROUTES, ("GET", "/v1/projects/shop/applets"): (500, {"message": "Internal Server Error"})}
+    client = LiaraClient("tok", "https://api.test", transport=FakeLiara(routes), retry_wait=0)
+    out = build_tools(client)["app_status"].func(app="shop")
+    assert out["name"] == "shop" and "not available" in out["instances"]

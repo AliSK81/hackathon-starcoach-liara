@@ -3,13 +3,14 @@
 ## Status board
 
 - **Current phase:** 8 — audit. Phases 1–7 are built and tested offline. Every real-API proof waits for `.env` (see the table below).
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 75 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 78 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
 
 ### What we need from the user
 
 | Item | Needed by phase | Status |
 |---|---|---|
-| `LIARA_API_TOKEN` in `.env` (Liara console → API) — `.env` still has the example value | 1 | asked again |
+| `LIARA_API_TOKEN` in `.env` | 1 | done |
+| Account balance: top up in the Liara console (≥ ~50,000 Toman runs the demo app ~2 days; it is now 285 Toman, F12) | 3 | asked |
 | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` in `.env` | 2 | done |
 
 ## How to work on the next change
@@ -195,7 +196,7 @@ Next change idea:
 ### Change 8 — Diagnosis engine, fix tools and fix verification — 2026-10-22
 Phase: 5, steps 1–6
 How to see it: `uv run starcoach eval`; `uv run starcoach diagnose <app>` (needs the token)
-Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 75 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
+Proof it works: `starcoach eval` on 34 labelled incidents. First runs, before any tuning on each set: dev 8/8 (baseline 2/8); holdout-1 13/14 = 92.9% (baseline 57.1%) (F6); fresh holdout-2 8/12 = 66.7%, **worse than the baseline's 75%** (F7). After two fixes found that way: 100% top-1 on all three sets; baselines 25% / 57% / 75%. 78 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. They include: the demo incident's top cause is `X-ENV-MISSING` with action `set_env SHOP_DB_URL`; OOM is scored lower when memory peaked at 30%; `gather` survives 3 failing sources; `verify_fix` waits 20 s for a restart and then says "fixed"; it says "not fixed" when `ECONNREFUSED` is still logged; `set_env` merges and de-duplicates; it refuses when encrypted envs exist; the env value never appears in events; a danger tool needs the app name typed.
 
 Research: 06 §3–6 (rules, weights, verification). 01 §4 (update-envs replaces all and restarts; encrypted values may be masked → we refuse).
 Questions: none
@@ -353,3 +354,30 @@ Not done yet:
 
 Next change idea:
 - With the real token: `check`, create and deploy the demo app, run the live scenario.
+
+### Change 16 — First real Liara runs: connection, plans, balance; balance check before create — 2026-10-23
+Phase: 1 and 3, real-run steps
+How to see it: `uv run starcoach check`; `uv run starcoach recommend examples/demo-node`; `uv run starcoach create shop --platform node --plan small-g2 --bundle basic`
+Proof it works:
+- `check`: "Connected to Liara as … Apps: 0. Balance: 285 Toman."
+- `recommend` on the real plan list: `small-g2` + `basic` = ~749,998 Toman/month (~1,042/hour) (F11).
+- `create` first returned Liara's real 402 "Not enough balance", which we show as a plain message. Now it stops before calling Liara: "Your balance is 285 Toman. This app costs about 1,042 Toman/hour (~25,000 per day)…" (exit 6).
+- Real LLM + real Liara (read-only), in `chat --once` and in the web UI: the agent read the project, the plans and the balance, said the balance is not enough, and gave the console top-up steps (F13).
+- 78 offline tests pass.
+
+Research: 04 A (plans, bundles) is confirmed by real data. The research guess "no plans endpoint, use /v1/me" is correct. New: `/v1/billing` shape (F12).
+Questions: none
+Decisions: F11, F12, F13, F14
+
+Shipped:
+- `LiaraClient.billing()` (keeps only money fields). `check` shows the balance.
+- `create` estimates the hourly cost (plan + bundle) and stops if the balance does not cover 24 hours.
+- `recommend` gives totals (plan + bundle) per hour and per month.
+- Agent tool `account_status` (read): balance and app count.
+- Web: markdown tables and `---` render properly (the real model uses them). Default port 8790 (F14).
+
+Not done yet:
+- Deploying and the live 500 scenario need a balance top-up (user task; payments cannot be done for you).
+
+Next change idea:
+- After the top-up: create `starcoach-shop`, deploy, run the live scenario, measure metric units.

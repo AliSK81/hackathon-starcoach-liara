@@ -44,7 +44,7 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach watch <app...> [--interval 60] [--auto-restart]` | check on a schedule; alert once per change (`results/alerts.jsonl`); diagnose on failure |
 | `uv run starcoach domain <app> <domain> [--add] [--check] [--ssl]` | connect a domain; prints the IRNIC / registrar steps |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
-| `uv run starcoach web` | open the web chat at http://127.0.0.1:8765 (approval cards, live status) |
+| `uv run starcoach web` | open the web chat at http://127.0.0.1:8790 (approval cards, live status) |
 | `uv run starcoach chat` | talk to the assistant (Persian or English) |
 | `uv run starcoach chat --once "..."` | ask one question and exit |
 

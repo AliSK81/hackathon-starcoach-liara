@@ -39,6 +39,10 @@
   .step { font-size: 13px; color: var(--muted); margin: 3px 4px; display: flex; gap: 6px; align-items: baseline; }
   .msg code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: var(--brand-soft);
               padding: 0 4px; border-radius: 4px; direction: ltr; unicode-bidi: embed; }
+  .msg table { border-collapse: collapse; margin: 6px 0; white-space: normal; }
+  .msg th, .msg td { border: 1px solid var(--line); padding: 3px 10px; text-align: start; }
+  .msg th { background: var(--brand-soft); }
+  .msg hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
   .step code, .card code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; direction: ltr;
                            unicode-bidi: embed; }
   .step.err { color: var(--bad); }
@@ -126,7 +130,7 @@ const cards = {};
 let logBox = null;
 
 const LABELS = {
-  list_apps: "فهرست برنامه‌ها", app_status: "وضعیت برنامه", api_limits: "محدودیت‌های API",
+  list_apps: "فهرست برنامه‌ها", account_status: "موجودی حساب", app_status: "وضعیت برنامه", api_limits: "محدودیت‌های API",
   recommend_setup: "بررسی پروژه و پیشنهاد پلن", get_logs: "خواندن لاگ‌ها", get_events: "خواندن رویدادها",
   get_metrics: "مصرف CPU و RAM", probe_site: "بررسی پاسخ سایت", release_status: "وضعیت دیپلوی",
   create_app: "ساخت برنامهٔ جدید", deploy_app: "دیپلوی نسخهٔ جدید", diagnose_app: "عیب‌یابی",
@@ -151,9 +155,25 @@ const IMPACT = {
 // Minimal, safe markdown: escape everything first, then bold, inline code and line breaks.
 function md(text) {
   const esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return esc.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
-            .replace(/`([^`]+)`/g, "<code>$1</code>")
-            .replace(/^#{1,4}\s*(.+)$/gm, "<b>$1</b>");
+  const inline = (s) => s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const out = [];
+  let rows = [];
+  const flush = () => {
+    if (!rows.length) return;
+    const cells = rows.filter((r) => !/^\|[\s:|-]+\|$/.test(r))  // drop the |---| separator row
+      .map((r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim())));
+    out.push("<table>" + cells.map((r, i) => "<tr>" + r.map((c) => (i ? "<td>" : "<th>") + c + (i ? "</td>" : "</th>")).join("") + "</tr>").join("") + "</table>");
+    rows = [];
+  };
+  for (const line of esc.split("\n")) {
+    if (/^\s*\|.*\|\s*$/.test(line)) { rows.push(line.trim()); continue; }
+    flush();
+    if (/^-{3,}\s*$/.test(line)) { out.push("<hr>"); continue; }
+    const h = line.match(/^#{1,4}\s*(.+)$/);
+    out.push(h ? "<b>" + inline(h[1]) + "</b>" : inline(line));
+  }
+  flush();
+  return out.join("\n").replace(/<\/table>\n/g, "</table>");
 }
 
 function el(tag, cls, text) {

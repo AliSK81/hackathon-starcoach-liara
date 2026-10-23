@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from starcoach.recommend import detect_platform, pick_plan, recommend
+from starcoach.recommend import detect_platform, hourly_cost, pick_plan, recommend
 
 DEMO = Path(__file__).resolve().parents[1] / "examples" / "demo-node"
 
@@ -64,6 +64,18 @@ BUNDLES = {"g2-small": {"bronze": {"available": True, "displayPrice": 0},
 def test_pick_cheapest_plan_meeting_ram():
     assert pick_plan(PLANS, 512, BUNDLES) == {
         "id": "g2-small", "ram_gb": 0.5, "cpu": 0.5, "disk_gb": None,
-        "price_per_hour": 100, "price_per_month": 72000, "bundle": "bronze", "bundle_price_per_month": 0}
+        "price_per_hour": 100, "price_per_month": 72000, "bundle": "bronze", "bundle_price_per_month": 0,
+        "total_per_hour": 100, "total_per_month": 72000}
     assert pick_plan(PLANS, 1024)["id"] == "g2-medium"
     assert pick_plan(PLANS, 64000) is None
+
+
+def test_total_cost_includes_bundle():
+    # Real numbers from the Liara plan list (F11): small-g2 659.72/h + basic bundle 275,000/month.
+    plans = {"small-g2": {"available": True, "price": 659.72, "RAM": {"amount": 0.5}, "CPU": {"amount": 0.5}}}
+    bundles = {"small-g2": {"basic": {"available": True, "displayPrice": 275000},
+                            "free": {"available": False, "displayPrice": 0}}}
+    p = pick_plan(plans, 512, bundles)
+    assert p["bundle"] == "basic" and p["total_per_hour"] == 1041.66 and p["total_per_month"] == 749998
+    assert hourly_cost(plans, bundles, "small-g2", "basic") == 1041.66
+    assert hourly_cost(plans, bundles, "nope", "basic") is None

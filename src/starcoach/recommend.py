@@ -147,7 +147,20 @@ def pick_plan(plans: dict, ram_need_mb: int, bundles: dict | None = None) -> dic
     if choices:
         bundle_price, bundle = min(choices)
         pick.update(bundle=bundle, bundle_price_per_month=bundle_price)
+    # Totals the user actually pays (plan + bundle). An LLM reading only the plan price under-quotes (F13).
+    bundle_monthly = pick.get("bundle_price_per_month", 0)
+    pick["total_per_hour"] = round(price + bundle_monthly / 720, 2)
+    pick["total_per_month"] = round(price * 720 + bundle_monthly)
     return pick
+
+
+def hourly_cost(plans: dict, bundles: dict | None, plan_id: str, bundle: str | None) -> float | None:
+    """Toman per hour: plan `price` is hourly; bundle `displayPrice` is monthly (÷ 720), per F11."""
+    plan = (plans or {}).get(plan_id) or {}
+    if plan.get("price") is None:
+        return None
+    monthly_bundle = (((bundles or {}).get(plan_id) or {}).get(bundle or "") or {}).get("displayPrice") or 0
+    return round(plan["price"] + monthly_bundle / 720, 2)
 
 
 def recommend(root: Path, plans: dict | None = None, bundles: dict | None = None) -> Advice:

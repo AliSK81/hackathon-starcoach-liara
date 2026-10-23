@@ -128,6 +128,11 @@ class LiaraClient:
     def me(self) -> dict:
         return self.request("GET", "/v1/me")
 
+    def billing(self) -> dict:
+        """Balance in Toman from GET /v1/billing (F12). Only money fields are kept."""
+        user = self.request("GET", "/v1/billing").get("user", {}) or {}
+        return {"balance": user.get("balance"), "min_credit": user.get("minCreditAmount")}
+
     def plans(self) -> dict:
         """Plan catalog from /v1/me. Only `plans` is kept: the rest holds personal data and keys."""
         return self.me().get("plans", {}) or {}

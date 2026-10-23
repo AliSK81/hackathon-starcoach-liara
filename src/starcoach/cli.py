@@ -15,7 +15,7 @@ from .eventlog import EventLog
 from .liara import LiaraClient, LiaraError
 from .limits import by_topic
 from .llm import ChatLLM, LLMError
-from .recommend import recommend
+from .recommend import hourly_cost, recommend
 from .tools import APP_PREFIX, DANGER, build_tools
 
 
@@ -33,6 +33,11 @@ def cmd_check(args, settings, log) -> int:
     user = client.me().get("user", {})
     apps = client.list_apps()
     print(f"Connected to Liara as {user.get('fullname') or 'unknown user'}. Apps: {len(apps)}.")
+    try:
+        bal = client.billing()
+        print(f"Balance: {bal['balance']:,.0f} Toman.")
+    except LiaraError as exc:
+        print(f"Balance: not available ({exc}).")
     return 0
 
 
@@ -83,7 +88,8 @@ def cmd_recommend(args, settings, log) -> int:
         p = advice.plan
         print(f"Suggested plan: {p['id']} — {p['cpu']} CPU, {p['ram_gb']} GB RAM, "
               f"~{p['price_per_month']:,} Toman/month"
-              + (f" + bundle {p['bundle']} {p['bundle_price_per_month']:,}" if p.get("bundle") else ""))
+              + (f" + bundle {p['bundle']} {p['bundle_price_per_month']:,}" if p.get("bundle") else "")
+              + f" = ~{p['total_per_month']:,} Toman/month (~{p['total_per_hour']:,.0f}/hour)")
     elif not plans:
         print("Plan: set LIARA_API_TOKEN to get a plan from your account's real plan list.")
     for w in advice.warnings:
@@ -99,12 +105,22 @@ def confirm(question: str, assume_yes: bool) -> bool:
 
 def cmd_create(args, settings, log) -> int:
     name = args.name if args.name.startswith(APP_PREFIX) else APP_PREFIX + args.name
+    client = _client(settings, log)
+    plans = client.plans()
+    per_hour = hourly_cost(plans.get("projects"), plans.get("projectBundlePlans"), args.plan, args.bundle)
+    balance = client.billing().get("balance")
+    cost = f"about {per_hour:,.0f} Toman/hour" if per_hour else "an hourly cost"
+    if per_hour and balance is not None and balance < per_hour * 24:
+        print(f"Your balance is {balance:,.0f} Toman. This app costs {cost} "
+              f"(~{per_hour * 24:,.0f} per day). Liara will likely refuse it. Top up in the console first.")
+        log.write("warn", command="create", balance=balance, per_hour=per_hour)
+        return 6
     if not confirm(f"Create app {name} ({args.platform}, plan {args.plan}, bundle {args.bundle})? "
-                   "It costs money every hour.", args.yes):
+                   f"It costs {cost}.", args.yes):
         log.write("rejected", command="create", app=name)
         print("Not created.")
         return 1
-    result = _client(settings, log).create_app(name, args.platform, args.plan, args.bundle, args.network)
+    result = client.create_app(name, args.platform, args.plan, args.bundle, args.network)
     log.write("result", command="create", result=result)
     print(f"Created {name} on network {result['network']}.")
     return 0
@@ -483,7 +499,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_resize)
     p = sub.add_parser("web", help="open the local web chat")
     p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--port", type=int, default=8790)
     p.set_defaults(func=cmd_web)
     p = sub.add_parser("watch", help="check apps on a schedule; alert once per change; diagnose on failure")
     p.add_argument("apps", nargs="+")

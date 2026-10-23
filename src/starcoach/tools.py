@@ -63,6 +63,11 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
     def list_apps() -> dict:
         return {"apps": [_app_summary(a) for a in client.list_apps()]}
 
+    def account_status() -> dict:
+        bal = client.billing()
+        return {"balance_toman": bal["balance"], "apps": len(client.list_apps()),
+                "note": "Topping up is done by the user in the Liara console; the API cannot pay."}
+
     def app_status(app: str) -> dict:
         details = clean_app(client.get_app(app))
         applets = client.applets(app)
@@ -156,6 +161,8 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
 
     tools = [
         Tool("list_apps", "List the user's Liara apps with platform, plan and status.", READ, list_apps),
+        Tool("account_status", "Account balance (Toman) and app count. Check it before creating an app.",
+             READ, account_status),
         Tool("app_status", "Show one app's details and its running instances.", READ, app_status,
              APP, ["app"]),
         Tool("api_limits", "What the Liara API cannot do. Use it before telling the user something is impossible.",

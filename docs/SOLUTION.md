@@ -118,7 +118,7 @@ Every endpoint is cited to the official OpenAPI spec or CLI source in [research]
 
 ## 4. How the user interacts
 
-**Web chat** (`uv run starcoach web` → http://127.0.0.1:8765), the main interface:
+**Web chat** (`uv run starcoach web` → http://127.0.0.1:8790), the main interface:
 
 - Type a request in Persian or English, or press a quick-start button ("my site has errors", "my site is slow", "publish my project", …).
 - A **live timeline** shows each step: "reading logs…", "✅ done", deploy build lines.

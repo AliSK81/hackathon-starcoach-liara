@@ -186,7 +186,7 @@ def make_handler(app: App):
     return Handler
 
 
-def serve(make_agent, host: str = "127.0.0.1", port: int = 8765, log=None) -> ThreadingHTTPServer:
+def serve(make_agent, host: str = "127.0.0.1", port: int = 8790, log=None) -> ThreadingHTTPServer:
     server = ThreadingHTTPServer((host, port), make_handler(App(make_agent, log)))
     server.daemon_threads = True
     return server

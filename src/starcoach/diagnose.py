@@ -236,8 +236,8 @@ def diagnose(ev: Evidence) -> dict:
         if rule.id == "X-ENV-MISSING":
             name = re.search(rule.pattern, hits[0]).group(1)
             action = {"tool": "set_env", "args": {"app": ev.app, "key": name, "value": "<ask the user>"}}
-        if rule.id in ("X-OOM-EVENT", "N-HEAP") and mem_pct is not None and mem_pct < 60:
-            score -= 30  # contradicting: memory never got close to the limit
+        # No "memory stayed low" penalty for OOM: metrics are sampled every 30 s and miss the peak
+        # (a real OOM showed 54% as the sampled max, F26). An oom event or a heap-OOM line is direct proof.
         add(rule, score, [f"log: {h[:200]}" for h in distinct[:3]] + [f"({len(hits)} matching lines)"], action)
 
     if not ev.turned_on:
@@ -260,13 +260,13 @@ def diagnose(ev: Evidence) -> dict:
             MODERATE + (15 if mem_pct >= 95 else 0), [f"memory peak {mem_pct}% of plan RAM"],
             {"tool": "resize_app", "args": {"app": ev.app}})
     if cpu_pct is not None and cpu_pct >= 85:
-        slow = probe.get("p50") and probe["p50"] > 1500
+        slow = probe.get("p50") and probe["p50"] >= 500  # busy CPU + slow pages = throttling (F27)
         add(Rule("S-CPU", "", MODERATE, "CPU is at the plan limit (the app is throttled)",
                  "پردازنده به سقف پلن رسیده (برنامه کند می‌شود)",
                  "Profile the hot path, add caching, or upgrade CPU.",
                  "بخش پرمصرف کد را پیدا کنید، کش اضافه کنید یا CPU را ارتقا دهید.",
                  "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"),
-            MODERATE + (15 if slow else 0), [f"CPU peak {cpu_pct}% of plan cores"]
+            MODERATE + (25 if slow else 0) + (15 if cpu_pct >= 95 else 0), [f"CPU peak {cpu_pct}% of plan cores"]
             + ([f"median response {probe['p50']} ms"] if slow else []),
             {"tool": "resize_app", "args": {"app": ev.app}})
 
@@ -319,6 +319,8 @@ def diagnose(ev: Evidence) -> dict:
     healthy = (probe.get("ok_ratio", 0) == 1 and ev.turned_on
                and (not ranked or ranked[0].confidence < 0.3))
     summary = ("healthy" if healthy else "problem" if ranked else "unclear")
+    if summary == "healthy" and (probe.get("p50") or 0) >= 800:
+        summary = "slow"  # answers 200, but too slowly (F27)
     return {"app": ev.app, "summary": summary,
             "causes": [c.to_dict() for c in ranked],
             "probe": ev.probe, "memory_peak_pct": mem_pct, "cpu_peak_pct": cpu_pct,

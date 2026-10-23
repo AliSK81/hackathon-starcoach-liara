@@ -1,11 +1,13 @@
 // Demo shop for StarCoach. Plain Node, no dependencies.
 // It needs SHOP_DB_URL. Without it, every page fails with HTTP 500, like a real app
 // whose database setting is missing. LEAK_MB makes each request keep that much memory.
+// BUSY_MS makes each request burn that much CPU time, like a slow report page.
 const http = require("http");
 
 const PORT = Number(process.env.PORT || 3000);
 const DB_URL = process.env.SHOP_DB_URL || "";
 const LEAK_MB = Number(process.env.LEAK_MB || 0);
+const BUSY_MS = Number(process.env.BUSY_MS || 0);
 const leaked = [];
 
 const products = [
@@ -26,6 +28,11 @@ function connectDb() {
 const server = http.createServer((req, res) => {
   const started = Date.now();
   if (LEAK_MB > 0) leaked.push(Buffer.alloc(LEAK_MB * 1024 * 1024, 1));
+  if (BUSY_MS > 0 && req.url !== "/health") {
+    const until = Date.now() + BUSY_MS;
+    let x = 0;
+    while (Date.now() < until) x += Math.sqrt(x + 1);  // blocks the event loop, like heavy sync work
+  }
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));

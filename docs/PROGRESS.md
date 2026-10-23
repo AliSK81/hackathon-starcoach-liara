@@ -508,3 +508,26 @@ Not done yet:
 
 Next change idea:
 - Weakest score items: a real high-memory incident on the demo app (`LEAK_MB`) to test the S-MEM / OOM rules live.
+
+### Change 21 — Real resource incidents: OOM and CPU slowness diagnosed live — 2026-10-23
+Phase: improving score 2 (the weakest item: slowness and high usage were not proven live)
+How to see it: `uv run starcoach diagnose <app>` while the demo app runs with `LEAK_MB=25` or `BUSY_MS=400` under traffic
+Proof it works: on the second demo app `starcoach-lab`:
+- OOM → `oom` events found, diagnosis OOM 86%; leak off → 40/40 OK (F26).
+- CPU load → p50 1.1 s, CPU 85% of the plan; diagnosis CPU-limit 50% (was a miss: HEALTHY, F27).
+- Eval sets unchanged; 84 tests pass. `starcoach-lab` is now stopped; `starcoach-shop` is untouched and healthy.
+
+Research: 06's "OOM with low memory = contradiction" was wrong on real data (sampling misses peaks).
+Questions: none
+Decisions: F26, F27
+
+Shipped:
+- Demo app `BUSY_MS` (a CPU burn per request).
+- Diagnosis: no OOM penalty from sampled memory; CPU + latency pairing at 500 ms; SLOW summary.
+- Test: an OOM event with 54% sampled memory still ranks ≥ 80%.
+
+Not done yet:
+- A live agent conversation on these incidents with an approved fix (blocked: an auto-approving agent on a real app is not allowed; run it yourself in the web UI).
+
+Next change idea:
+- none planned

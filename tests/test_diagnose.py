@@ -34,12 +34,13 @@ def test_demo_incident_suggests_env_fix():
     assert top["title_fa"]
 
 
-def test_contradiction_lowers_oom():
-    base = dict(app="a", platform="node", log_lines=["FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"],
-                probe={"statuses": [502] * 3})
-    high = diagnose(Evidence(**base, metrics={"memory": [{"max_pct_of_limit": 99}], "cpu": []}))
-    low = diagnose(Evidence(**base, metrics={"memory": [{"max_pct_of_limit": 30}], "cpu": []}))
-    assert low["causes"][0]["score"] < high["causes"][0]["score"]
+def test_oom_event_not_lowered_by_sampled_memory():
+    # Real incident (F26): Liara reported `oom` while the 30 s memory samples peaked at 54%.
+    ev = Evidence(app="lab", platform="node", events=["oom: container ran out of memory (release v3)",
+                                                      "crashed: container exited without a stop request (release v3)"],
+                  probe={"statuses": [200, 502, 200]}, metrics={"memory": [{"max_pct_of_limit": 54}], "cpu": []})
+    top = diagnose(ev)["causes"][0]
+    assert top["id"] == "X-OOM-EVENT" and top["confidence"] >= 0.8
 
 
 def fake_probe(statuses):

@@ -1,6 +1,6 @@
 [project]
 name = "starcoach"
-version = "0.1.0"
+version = "1.0.0"
 description = "A Liara website assistant: deploy, monitor, diagnose, fix — with your approval."
 readme = "README.md"
 requires-python = ">=3.11"

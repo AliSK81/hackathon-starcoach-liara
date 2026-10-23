@@ -370,7 +370,8 @@ def gather(client, app: str, minutes: int = 30, probe_tries: int = 5, prober=Non
 
 
 def verify_fix(client, app: str, cause_ids: list[str], since: float, probe_tries: int = 5,
-               prober=None, wait_seconds: float = 90, sleep=None, log_delay: float = 3) -> dict:
+               prober=None, wait_seconds: float = 90, sleep=None, log_delay: float = 3,
+               stable_seconds: float = 40) -> dict:
     """After a fix: wait until the site answers (the app may be restarting), re-probe,
     and look for the old error signatures in logs written after `since`."""
     import time as _time
@@ -389,7 +390,9 @@ def verify_fix(client, app: str, cause_ids: list[str], since: float, probe_tries
             break
         sleep(10)
         waited += 10
-    probe = prober(url, tries=probe_tries).to_dict()
+    # Spread the probes over a stability window: Liara may restart the new container once more
+    # shortly after it first answers (F23), and one quick burst would miss that.
+    probe = prober(url, tries=probe_tries, pause=stable_seconds / max(probe_tries - 1, 1)).to_dict()
     probe["waited_seconds"] = waited
     sleep(log_delay)  # let the probe requests reach the log stream
     # Only lines written once the site answered again count. Until the restart finishes, the old
@@ -409,8 +412,18 @@ def verify_fix(client, app: str, cause_ids: list[str], since: float, probe_tries
             hits = [l["text"] for l in lines if rx.search(l["text"])]
             if hits:
                 still[cid] = hits[:2]
-    ok = probe["ok_ratio"] == 1 and not still
-    return {"app": app, "fixed": ok,
-            "verdict": "fixed" if ok else ("site ok, errors still in logs" if probe["ok_ratio"] == 1
-                                           else "not fixed"),
-            "probe": probe, "new_log_lines": len(lines), "signatures_still_present": still}
+    statuses = probe["statuses"]
+    blips = sum(1 for s in statuses if not 200 <= s < 400)
+    settled = bool(statuses) and 200 <= statuses[-1] < 400 and blips <= 1
+    if still:
+        verdict = "site answers, but the old errors are still in the logs" if settled else "not fixed"
+    elif blips == 0:
+        verdict = "fixed"
+    elif settled:
+        verdict = "fixed (one short blip during the check, likely the restart finishing)"
+    else:
+        verdict = "not fixed"
+    ok = verdict.startswith("fixed")
+    return {"app": app, "fixed": ok, "verdict": verdict, "blips": blips,
+            "stable_window_seconds": stable_seconds, "probe": probe, "new_log_lines": len(lines),
+            "signatures_still_present": still}

@@ -18,4 +18,5 @@ Watch apps without a human, and make custom domains easy, including the IRNIC st
 - [x] `starcoach domain <app> <domain> [--add --check --ssl]`
 - [x] agent tools: `domain_guide` (read), `add_domain`, `enable_ssl` (change)
 - [x] offline tests
-- [ ] real watch run on the demo app
+- [x] real watch run on the demo app
+- [ ] real `domain --add` (no domain owned for the demo; the list endpoint was read for real)

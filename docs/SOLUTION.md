@@ -87,13 +87,14 @@ flowchart LR
 
 - **Base URL:** `https://api.liara.ir` (the official CLI default; F4). Change it with `LIARA_API_URL`.
 - **Auth:** `Authorization: Bearer <token>`. Create the token in the Liara console → API, and put it in `.env` as `LIARA_API_TOKEN`. `.env` is git-ignored.
-- **Connection test:** `uv run starcoach check` calls `GET /v1/me` and `GET /v1/projects`, then prints your name and app count. Only the name is shown, because `/v1/me` also holds personal data and storage keys.
+- **Connection test:** `uv run starcoach check` calls `GET /v1/me`, `GET /v1/projects` and `GET /v1/billing`, then prints your name, app count and balance. Only the name is shown, because `/v1/me` also holds personal data and storage keys.
+- **Teams:** if your apps and wallet are in a Liara team, set `LIARA_TEAM_ID` (from `uv run starcoach teams`, which calls `GET /v2/teams`). Every request then carries `?teamID=`, like the official CLI, and the team's wallet pays (F15).
 
 **Endpoints used**
 
 | Purpose | Endpoint |
 |---|---|
-| Account, plans | `GET /v1/me` (only `plans` and the name are kept) |
+| Account, plans, balance, teams | `GET /v1/me` (only `plans` and the name are kept), `GET /v1/billing`, `GET /v2/teams` |
 | Apps | `GET /v1/projects`, `GET /v1/projects/{app}`, `POST /v1/projects`, `GET /v1/networks` |
 | Instances, releases | `GET /v1/projects/{app}/applets`, `GET /v1/projects/{app}/releases`, `GET /v1/releases/{id}` |
 | Deploy | `POST /v2/projects/{app}/sources` (multipart tar.gz), `POST /v2/projects/{app}/releases`, `GET /v2/releases/{id}/build-logs` |
@@ -151,7 +152,9 @@ Every endpoint is cited to the official OpenAPI spec or CLI source in [research]
 - No documented rollback endpoint. To roll back we redeploy an older version.
 - Console notifications have no API or webhook. `watch` polls instead.
 - Registrar changes (IRNIC nameservers) are done by the user in the registrar panel. We give exact steps.
-- Metric units and resolution are not documented (see section 6).
+- Metric units are not documented. We measured them: CPU in cores, memory in bytes, a point every 30 s (F21).
+- The logs API returns at most 100 lines per call (F19). Events come as container lifecycle records (create, start, kill, die), not as documented (F20).
+- Payments (topping up the balance) cannot be made through the API.
 
 **Our own limits:**
 
@@ -159,7 +162,7 @@ Every endpoint is cited to the official OpenAPI spec or CLI source in [research]
 - Rule weights are design choices from research 06. They are tuned on 34 written incidents, not yet on many real ones.
 - Ignore files: `!negation` patterns and nested ignore files are not supported by our packer.
 - One user, local only. No accounts, no multi-tenant server.
-- Teams (`teamID`) are not wired in.
+- A custom domain was not added live: we own no test domain. The domain list endpoint was read for real.
 
 ---
 
@@ -174,10 +177,32 @@ Every endpoint is cited to the official OpenAPI spec or CLI source in [research]
 | holdout-1 | 14 | 92.9% | 57.1% | 100% |
 | holdout-2 (fresh) | 12 | **66.7% (lost to baseline)** | 75% | 100% |
 
-We report the first runs honestly (F6, F7). The holdout-2 loss showed two real design flaws. A confidence cut-off hid moderate causes, and one loopback signature was missing. Both were fixed. All three sets have now been used for tuning, so the next honest test is real incidents (below).
+We report the first runs honestly (F6, F7). The holdout-2 loss showed two real design flaws. A confidence cut-off hid moderate causes, and one loopback signature was missing. Both were fixed. All three sets have now been used for tuning, so the honest test is the real incident below.
 
-**Tests:** 70 offline tests (`uv run pytest -q`, no network). They cover the API client, deploy flow, log parsing, diagnosis, approvals over HTTP, watch dedupe, and secret masking.
+**Tests:** 82 offline tests (`uv run pytest -q`, no network). They cover the API client, teams, the deploy flow, log and event parsing (real response shapes), diagnosis, verification with restart blips, approvals over HTTP, watch dedupe, and secret masking.
 
-**Real runs on Liara:** *pending the API token in `.env`.* The results go here: connection check, real deploy of the demo app, the real 500 → diagnose → fix → verify scenario, and real metric units.
+### Real runs on Liara (2026-10-23, team «لیارا», demo app `starcoach-shop`)
 
-**Real runs already done:** the HTTP probe against a live site (`starcoach health https://liara.ir` → 3/3 OK, p50 107 ms). The Liara API answers `401` without a token on both hosts (F1, F4).
+| Step | Command | Real result |
+|---|---|---|
+| Connect | `starcoach check` | connected; team balance 1,998,014 Toman (F15) |
+| Choose a plan | `starcoach recommend examples/demo-node` | node, port 3000; `small-g2` + `basic` ≈ 749,998 Toman/month, cheapest of 42 real plans (F11) |
+| Create | `starcoach create shop …` | `starcoach-shop` created on network `starcoach` |
+| Deploy | `starcoach deploy examples/demo-node --app starcoach-shop` | PENDING → BUILDING → DEPLOYING → READY in **23 s**, no Liara CLI (F22) |
+| See the failure | `starcoach health starcoach-shop` | 5/5 × **500**, p50 134 ms |
+| Diagnose | `starcoach diagnose starcoach-shop` | 1. missing env var `SHOP_DB_URL` (**86%**), which explains 2. DB connection refused (54%) |
+| Fix + verify (agent) | web chat → approve card → `set_env` → `verify_fix` | 5/5 × **200**, old errors gone |
+| Full live eval | `uv run python evals/live_scenario.py starcoach-shop --yes` | all 5 checks pass, 99.5 s from the user's first message to verified fix → [`results/live-scenario.json`](../results/live-scenario.json) |
+| Monitor | `starcoach watch starcoach-shop --once`, `metrics`, `logs`, `events` | alert `unknown → up`; RAM 29 MB of 512, CPU 0.02 of 0.5 cores |
+
+**Real LLM behaviour** (`evals/llm_scenario.py`, 5 runs): 5/5 passed after one prompt fix. Before the fix, 1 of 2 runs asked "do you approve?" in text on top of the approval card (F9).
+
+**What the real system taught us** (each one fixed, with a test):
+- The first real incident ranked the symptom above the root cause (top-1 miss). Repeated identical log lines measured traffic, not likelihood. Fixed with distinct-line counting and a causal-chain rule (F17).
+- Logs come in pages of 100. We were reading the oldest page (F19).
+- Events have an undocumented shape. A planned restart (kill → die) must not count as a crash (F20).
+- After an env change the old container keeps logging errors until the new one starts, and Liara may restart the new container once more. Verification now reads only logs written after recovery, spreads its probes over 40 s, and reports blips honestly (F18, F23).
+- Only log lines from the current release count in a diagnosis, so a fixed app is not reported as broken.
+- The machine's VPN proxy could not reach `*.liara.run`, so the probe connects directly, like a visitor (F16, D8).
+- The agent under-quoted the cost (plan without bundle). `recommend` now gives totals (F13).
+- The apps and wallet were in a team, so team support was added (F15, D9).

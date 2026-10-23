@@ -1,0 +1,1 @@
+{"time": "2026-10-23T19:34:22+00:00", "app": "starcoach-shop", "from": "unknown", "to": "up", "probe": {"url": "https://starcoach-shop.liara.run", "tries": 3, "statuses": [200, 200, 200], "latencies_ms": [136, 165, 195], "errors": [], "ok_ratio": 1.0, "p50_ms": 165, "max_ms": 195, "server_errors": 0}}

@@ -17,4 +17,4 @@ Plain-language request → tool calls on Liara → a clear answer. Risky tools w
 - [x] `agent.py` loop with risk gate and events
 - [x] `starcoach chat` (REPL) and `starcoach chat --once "..."`
 - [x] offline tests with a scripted fake LLM (read tool, approval yes, approval no, tool error)
-- [ ] real run with the user's LLM and token
+- [x] real run with the user's LLM and token

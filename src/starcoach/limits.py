@@ -40,9 +40,17 @@ LIMITS = [
           "تغییر نیم‌سرورها در ثبت‌کنندهٔ دامنه (مثلاً ایرنیک برای .ir) را خودتان در پنل آن انجام می‌دهید.",
           "docs/research/04-domains-plans.md"),
     Limit("metric-units", "monitoring",
-          "Metric units and resolution are not documented. We check them against real data before trusting them.",
-          "واحد و دقت متریک‌ها مستند نیست. پیش از اتکا، با دادهٔ واقعی بررسی می‌کنیم.",
-          "docs/research/03-liara-logs-metrics.md"),
+          "Metric units are not documented. Measured on a real app: CPU in cores, memory in bytes, one point per 30 s (F21).",
+          "واحد متریک‌ها مستند نیست. روی برنامهٔ واقعی سنجیدیم: CPU بر حسب هسته، حافظه بر حسب بایت، هر ۳۰ ثانیه یک نقطه.",
+          "docs/DECISIONS.md F21"),
+    Limit("log-page", "monitoring",
+          "The logs API returns at most 100 lines per call. We read the newest page; older lines need more calls.",
+          "API لاگ در هر درخواست حداکثر ۱۰۰ خط می‌دهد. ما جدیدترین صفحه را می‌خوانیم.",
+          "docs/DECISIONS.md F19"),
+    Limit("payments", "billing",
+          "Topping up the balance cannot be done through the API. You pay in the Liara console.",
+          "شارژ حساب از طریق API ممکن نیست؛ باید در کنسول لیارا پرداخت کنید.",
+          "docs/DECISIONS.md F12"),
 ]
 
 

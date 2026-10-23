@@ -18,4 +18,4 @@ See what an app is doing: logs, CPU and RAM against plan limits, events, and how
 - [x] `starcoach health <app|url> [--tries N]`
 - [x] agent tools: `get_logs`, `get_events`, `get_metrics`, `probe_site`
 - [x] offline tests with recorded-shape fixtures
-- [ ] real check of metric units on the demo app (F fact)
+- [x] real check of metric units on the demo app (F fact)

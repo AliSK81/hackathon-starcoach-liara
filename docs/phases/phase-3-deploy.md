@@ -20,4 +20,4 @@ From a project folder to a live Liara app: recommend, create, deploy, report.
 - [x] `starcoach create <name> --platform P --plan ID`
 - [x] agent tools: `recommend_setup`, `create_app`, `deploy_app`, `release_status`
 - [x] demo app in `examples/`
-- [ ] real deploy answers HTTP 200
+- [x] real deploy answers HTTP 200 (READY in 23 s, F22; 200 after the env fix)

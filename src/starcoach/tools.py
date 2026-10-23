@@ -167,7 +167,7 @@ def build_tools(client: LiaraClient, on_event=None) -> dict[str, Tool]:
              APP, ["app"]),
         Tool("api_limits", "What the Liara API cannot do. Use it before telling the user something is impossible.",
              READ, api_limits,
-             {"topic": {"type": "string", "enum": ["monitoring", "deploy", "automation", "domains"]}}),
+             {"topic": {"type": "string", "enum": ["monitoring", "deploy", "automation", "domains", "billing"]}}),
         Tool("recommend_setup", "Look at a local project folder: platform, port, plan, and problems to fix "
              "before deploying.", READ, recommend_setup,
              {"path": {"type": "string", "description": "local project folder"}}, ["path"]),

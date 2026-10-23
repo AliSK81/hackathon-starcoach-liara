@@ -2,15 +2,15 @@
 
 ## Status board
 
-- **Current phase:** 8 — audit. Phases 1–7 are built and tested offline. Every real-API proof waits for `.env` (see the table below).
-- **Live / working:** `version`, `check`, `apps`, `status`, `limits`, `chat`, `recommend`, `create`, `deploy`, `logs`, `events`, `metrics`, `health`, `diagnose`, `verify`, `set-env`, `start`, `stop`, `resize`, `eval`, `web`, `watch`, `domain` (offline-tested; `health` also proven on a real URL; not yet run against the real API or LLM: needs `.env`). 76 offline tests pass. Real LLM: 5/5 on the demo scenario (F9). A fresh clone installs and passes all tests. Diagnosis eval: 100% top-1 on 34 labelled incidents after fixes (see F6, F7 for the honest first runs).
+- **Current phase:** 8 — audit and tag. Phases 0–7 are done and checked on the real Liara and the real LLM.
+- **Live / working:** demo app `starcoach-shop` on Liara (team «لیارا», small-g2, healthy). The full live scenario passes all 5 checks (`results/live-scenario.json`). 82 offline tests pass. Diagnosis eval 100% on 34 incidents plus the real incident (after F17).
 
 ### What we need from the user
 
 | Item | Needed by phase | Status |
 |---|---|---|
 | `LIARA_API_TOKEN` in `.env` | 1 | done |
-| Account balance: top up in the Liara console (≥ ~50,000 Toman runs the demo app ~2 days; it is now 285 Toman, F12) | 3 | asked |
+| Account balance — not needed: the team wallet pays (F15) | 3 | done |
 | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` in `.env` | 2 | done |
 
 ## How to work on the next change
@@ -381,3 +381,36 @@ Not done yet:
 
 Next change idea:
 - After the top-up: create `starcoach-shop`, deploy, run the live scenario, measure metric units.
+
+### Change 17 — Live on Liara: team support, real deploy, real 500 → diagnose → approved fix → verified — 2026-10-23
+Phase: 1, 3, 4, 5, 7 real-run steps
+How to see it: `uv run python evals/live_scenario.py starcoach-shop --yes`; or open the web chat and say «سایت starcoach-shop خطای ۵۰۰ می‌دهد»
+Proof it works (all on the real API, the real LLM, and the user's team «لیارا»):
+- `check` → team balance 1,998,014 Toman. `create` → `starcoach-shop` on `small-g2` + `basic` (cheapest; D2).
+- `deploy` → READY in 23 s (F22). `health` → 5/5 × 500, as designed.
+- `diagnose` → root cause `SHOP_DB_URL` missing at 86%, which explains the DB connection error.
+- Web UI: the agent asked for the value, showed one approval card, set the env, verified 5/5 × 200.
+- `evals/live_scenario.py` (break → agent → fix): all 5 checks, 99.5 s.
+- `watch --once` → alert `unknown → up`. `metrics` → RAM 29 MB of 512, CPU 0.02 of 0.5 cores.
+- 82 offline tests pass; ruff clean; eval sets still 100%.
+
+Research: real responses differed from research in 4 places, all recorded: teams (F15), logs paging (F19), events shape (F20), metric series lifetime (F24).
+Questions: "balance is too low?" → the user said the money is in the Liara team → D9.
+Decisions: D8, D9, F15–F24
+
+Shipped:
+- Teams: `LIARA_TEAM_ID`, `?teamID=` on every call, team wallet in `billing()`, `starcoach teams`, a hint in `check`.
+- Probe connects directly (D8).
+- Logs: the newest page (`direction=backward`).
+- Events: real shape parsed; crashes (die without kill, paired per container), OOM; crash-loop symptom rule.
+- Diagnosis: distinct-line counting, causal chain (missing env → connection errors), only current-release logs and events count.
+- Verify: only logs after recovery, probes spread over a 40 s window, honest blip verdict.
+- Metrics: only live instances.
+- Limits registry: units measured, 100-line log pages, payments.
+- `evals/live_scenario.py`; README and reviewer doc with the real results.
+
+Not done yet:
+- A custom domain was not added live (no test domain owned).
+
+Next change idea:
+- The line-by-line audit against requirements.md, then the tag.

@@ -93,3 +93,10 @@ def test_probe_counts_errors_and_latency():
 def test_app_url():
     assert observe.app_url("shop") == "https://shop.liara.run"
     assert observe.app_url("https://a.ir") == "https://a.ir"
+
+
+def test_dead_instance_series_are_dropped():
+    from starcoach.observe import _series_stats
+    stats = _series_stats([{"applet": "old", "values": [[100, "0.5"], [130, "0.4"]]},
+                           {"applet": "new", "values": [[400, "0.01"], [430, "0.02"]]}])
+    assert [s["instance"] for s in stats] == ["new"] and stats[0]["max"] == 0.02

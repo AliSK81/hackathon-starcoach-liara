@@ -147,3 +147,18 @@ def test_verify_ignores_old_container_lines_before_healthy(monkeypatch):
     r = verify_fix(client, "shop", ["X-DB-REFUSED"], since=now, prober=fake_probe([500, 500, 200]),
                    wait_seconds=60, sleep=sleep)
     assert r["fixed"] and r["signatures_still_present"] == {}
+
+
+def test_verify_reports_a_restart_blip_honestly():
+    client = LiaraClient("tok", "https://api.test", retry_wait=0,
+                         transport=FakeLiara({("GET", "/v2/projects/shop/logs"): (200, LOG_AFTER)}))
+    seq = iter([200, 502, 200, 200, 200, 200])  # first ok, then one blip in the stability window
+
+    def prober(url, tries=5, **kw):
+        r = ProbeResult(url=url, tries=tries)
+        r.statuses = [next(seq) for _ in range(tries)]
+        r.latencies_ms = [5] * tries
+        return r
+
+    r = verify_fix(client, "shop", ["X-DB-REFUSED"], since=1, prober=prober, sleep=lambda s: None)
+    assert r["fixed"] and r["blips"] == 1 and "blip" in r["verdict"]

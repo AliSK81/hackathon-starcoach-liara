@@ -19,4 +19,4 @@ From "my site is broken" to ranked causes, an approved fix, and a checked result
 - [x] `starcoach verify <app>`
 - [x] agent tools: `diagnose_app`, `verify_fix`, `set_env`, `start_app`, `stop_app`, `resize_app`
 - [x] `starcoach eval` on dev + 2 holdout sets vs baseline
-- [ ] real broken demo app diagnosed and fixed end to end
+- [x] real broken demo app diagnosed and fixed end to end

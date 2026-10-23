@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-23 23:04",
+  "app": "starcoach-shop",
+  "model": "qwen3.8-27b",
+  "seconds": 99.5,
+  "before": [
+    502,
+    502,
+    502,
+    502,
+    502
+  ],
+  "after": [
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "after_p50_ms": 154,
+  "turns": [
+    "سایت {app} خطای ۵۰۰ می‌دهد. مشکل چیه؟",
+    "مقدارش را memory:// بگذار و درستش کن."
+  ],
+  "answers": [
+    "پیدا شد. مشکل این است:\n\n**۱. یک متغیر محیطی لازم تنظیم نشده (احتمال ۸۶٪)**\nبرنامه نمی‌داند پایگاه داده‌اش کجاست. در لاگ نوشته:\n`SHOP_DB_URL is not set; using default 127.0.0.1:5432`\n\nیعنی چون آدرس دیتابیس داده نشده، به آدرس پیش‌فرض (خودِ سرور) وصل می‌شود.\n\n**۲. به همین دلیل به پایگاه داده وصل نمی‌شود (احتمال ۵۴٪)**\nلاگ: `Error: connect ECONNREFUSED 127.0.0.1:5432`\nاتصال رد شده، برای همین سایت خطای ۵۰۰ می‌دهد.\n\nسایت را ۵ بار تست کردم: ۵ بار خطا (۵۰۰/۵۰۲). یعنی الان کاملاً خراب است.\n\n---\n\nبرای درست کردن، باید مقدار `SHOP_DB_URL` را داشته باشم. این آدرس پایگاه داده است (معمولاً به شکل `postgres://user:pass@host:port/dbname`).\n\nمقدار `SHOP_DB_URL` را برام بفرست تا تنظیمش کنم. اگر داری از دیتابیس جداگانه در لیارا استفاده می‌کنی، آدرس شبکهٔ خصوصی‌اش را بده.",
+    "درست شد. ✅\n\nبررسی بعد از اصلاح:\n- سایت ۵ بار تست شد: **۵ بار پاسخ ۲۰۰** (همه سالم)\n- خطای سرور: **۰**\n- خطای قبلی در لاگ: **دیگر تکرار نشده**\n- سرعت پاسخ: حدود ۱۳۳ میلی‌ثانیه\n\nسایت `starcoach-shop.liara.run` الان سالم کار می‌کند.\n\nیک نکته: چون `memory://` گذاشتی، دیتابیس در حافظه است. یعنی اگر برنامه ری‌استارت شود، داده‌ها پاک می‌شوند. برای فروشگاه واقعی بهتر است بعداً از یک دیتابیس دائمی استفاده کنی. اگر خواستی کمکت کنم بگو."
+  ],
+  "steps": [
+    {
+      "t": 1.1,
+      "event": "tool_start",
+      "tool": "diagnose_app",
+      "args": {
+        "app": "starcoach-shop"
+      },
+      "error": null
+    },
+    {
+      "t": 7.7,
+      "event": "tool_done",
+      "tool": "diagnose_app",
+      "args": null,
+      "error": null
+    },
+    {
+      "t": 14.6,
+      "event": "approval_needed",
+      "tool": "set_env",
+      "args": {
+        "app": "starcoach-shop",
+        "key": "SHOP_DB_URL",
+        "value": "***"
+      },
+      "error": null
+    },
+    {
+      "t": 14.6,
+      "event": "approved",
+      "tool": "set_env",
+      "args": {
+        "app": "starcoach-shop",
+        "key": "SHOP_DB_URL",
+        "value": "***"
+      },
+      "error": null
+    },
+    {
+      "t": 14.6,
+      "event": "tool_start",
+      "tool": "set_env",
+      "args": {
+        "app": "starcoach-shop",
+        "key": "SHOP_DB_URL",
+        "value": "***"
+      },
+      "error": null
+    },
+    {
+      "t": 16.1,
+      "event": "tool_done",
+      "tool": "set_env",
+      "args": null,
+      "error": null
+    },
+    {
+      "t": 17.8,
+      "event": "tool_start",
+      "tool": "verify_fix",
+      "args": {
+        "app": "starcoach-shop",
+        "cause_ids": [
+          "X-ENV-MISSING",
+          "X-DB-REFUSED"
+        ],
+        "since": 1792783951
+      },
+      "error": null
+    },
+    {
+      "t": 92.3,
+      "event": "tool_done",
+      "tool": "verify_fix",
+      "args": null,
+      "error": null
+    }
+  ],
+  "approvals": [
+    {
+      "tool": "set_env",
+      "risk": "change",
+      "args": {
+        "app": "starcoach-shop",
+        "key": "SHOP_DB_URL",
+        "value": "***"
+      }
+    }
+  ],
+  "checks": {
+    "site_broken_before": true,
+    "diagnosed_first": true,
+    "one_approval_set_env": true,
+    "verified_after_fix": true,
+    "site_fixed_after": true
+  }
+}

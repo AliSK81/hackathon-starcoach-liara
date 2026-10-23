@@ -100,19 +100,26 @@ def parse_events(payload: dict) -> list[dict]:
     return out
 
 
-def _series_stats(result: list[dict]) -> list[dict]:
+def _series_stats(result: list[dict], live_window: float = 90) -> list[dict]:
+    """Stats per instance. Every container restart starts a new series (F21), so only series that
+    reported within `live_window` seconds of the newest point are kept: dead containers are history."""
     out = []
     for s in result or []:
-        vals = []
+        vals, last_ts = [], 0.0
         for point in s.get("values", []) or []:
             try:
                 vals.append(float(point[1]))
+                last_ts = max(last_ts, float(point[0]))
             except (TypeError, ValueError, IndexError):
                 continue
         if vals:
             out.append({"instance": s.get("applet"), "last": vals[-1], "avg": statistics.fmean(vals),
-                        "max": max(vals), "points": len(vals)})
-    return out
+                        "max": max(vals), "points": len(vals), "_last_ts": last_ts})
+    newest = max((s["_last_ts"] for s in out), default=0)
+    live = [s for s in out if s["_last_ts"] >= newest - live_window]
+    for s in live:
+        s.pop("_last_ts")
+    return live
 
 
 def plan_limits(client: LiaraClient, plan_id: str) -> dict:
@@ -134,6 +141,11 @@ def get_metrics(client: LiaraClient, app: str, minutes: int = 30) -> dict:
     limits = plan_limits(client, project.get("planID", ""))
     cpu_stats = _series_stats(cpu.get("result"))
     mem_stats = _series_stats(mem.get("result"))
+    # Memory series of dead containers keep their last value for ~5 minutes (F21); CPU series stop
+    # at once, so CPU tells which instances are alive.
+    live = {s["instance"] for s in cpu_stats}
+    if live and any(s["instance"] in live for s in mem_stats):
+        mem_stats = [s for s in mem_stats if s["instance"] in live]
     for s in mem_stats:
         s["last_mb"], s["max_mb"] = round(to_mb(s["last"]), 1), round(to_mb(s["max"]), 1)
         if limits["ram_gb"]:

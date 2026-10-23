@@ -18,6 +18,7 @@ cp .env.example .env
 ```
 
 Then put your real values in `.env`. It is never committed.
+If your apps and balance are in a Liara team, set `LIARA_TEAM_ID` (find it with `uv run starcoach teams`).
 
 ## Commands
 
@@ -25,7 +26,8 @@ Then put your real values in `.env`. It is never committed.
 |---|---|
 | `uv run starcoach --help` | list all commands |
 | `uv run starcoach version` | show the version |
-| `uv run starcoach check` | test the Liara token and connection |
+| `uv run starcoach check` | test the Liara token and connection; shows the balance |
+| `uv run starcoach teams` | list your Liara teams (set `LIARA_TEAM_ID` in `.env` to work in one) |
 | `uv run starcoach apps` | list your Liara apps |
 | `uv run starcoach status <app>` | one app's state and instances |
 | `uv run starcoach recommend [dir]` | suggest platform, port and plan for a project folder |
@@ -44,11 +46,20 @@ Then put your real values in `.env`. It is never committed.
 | `uv run starcoach watch <app...> [--interval 60] [--auto-restart]` | check on a schedule; alert once per change (`results/alerts.jsonl`); diagnose on failure |
 | `uv run starcoach domain <app> <domain> [--add] [--check] [--ssl]` | connect a domain; prints the IRNIC / registrar steps |
 | `uv run starcoach limits [--topic T]` | what the Liara API cannot do |
-| `uv run starcoach web` | open the web chat at http://127.0.0.1:8790 (approval cards, live status) |
+| `uv run starcoach web [--port N]` | open the web chat at http://127.0.0.1:8790 (approval cards, live status) |
 | `uv run starcoach chat` | talk to the assistant (Persian or English) |
 | `uv run starcoach chat --once "..."` | ask one question and exit |
 
 Every run appends events to `logs/events.jsonl`. Secrets are masked there.
+
+## Evals with real systems
+
+| Command | What it does |
+|---|---|
+| `uv run python evals/llm_scenario.py 5` | real LLM, simulated broken app: does the agent diagnose, ask, fix and verify? → `results/llm-scenario.json` |
+| `uv run python evals/live_scenario.py starcoach-shop --yes` | real LLM **and** real Liara: breaks the demo app, then the agent fixes it → `results/live-scenario.json` |
+
+The live eval changes a real app. Use it only on the demo app.
 
 ## Tests
 

@@ -19,4 +19,4 @@ A tested API client. Real read-only commands. Clear errors. A list of API limits
 - [x] `starcoach status <app>` — app state and instances
 - [x] `starcoach limits` — what the API cannot do
 - [x] offline tests with a fake transport
-- [ ] real run with the user's token
+- [x] real run with the user's token

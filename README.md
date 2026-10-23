@@ -40,6 +40,7 @@ If your apps and balance are in a Liara team, set `LIARA_TEAM_ID` (find it with 
 | `uv run starcoach diagnose <app>` | ranked probable causes with evidence and fixes |
 | `uv run starcoach verify <app> --causes ID...` | after a fix: wait, re-probe, check old errors are gone |
 | `uv run starcoach set-env <app> KEY VALUE` | set one env var (asks first; restarts the app) |
+| `uv run starcoach restart <app>` | restart an app (asks first) |
 | `uv run starcoach start <app>` / `stop <app>` | turn an app on / off (stop: type the name) |
 | `uv run starcoach resize <app> <plan>` | change the plan (type the name) |
 | `uv run starcoach eval` | score the diagnosis engine vs a baseline; writes `results/diagnosis-eval.json` |

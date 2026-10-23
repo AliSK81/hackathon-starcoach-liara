@@ -84,6 +84,18 @@ def make(tmp_path, api):
     return d, events
 
 
+def test_build_failure_explained_from_real_npm_output():
+    from starcoach.deploy import explain_build_failure
+    # Real lines from a failed Liara build (F25); npm prints them in red on STDOUT.
+    lines = ["> Running npm install...",
+             "\x1b[91mnpm error code E404\nnpm error 404 Not Found - GET http://10.16.100.42/repository/npm-proxy/starcoach-package-that-does-not-exist-xyz\n",
+             "\x1b[91mnpm error 404  'starcoach-package-that-does-not-exist-xyz@^9.9.9' is not in this registry.\n",
+             "The command '/bin/bash -o pipefail -c chmod +x /usr/local/lib/liara/*.sh' returned a non-zero code: 1"]
+    e = explain_build_failure(lines)
+    assert "starcoach-package-that-does-not-exist-xyz" in e["cause"] and "package.json" in e["fix"]
+    assert explain_build_failure(["all good"]) is None
+
+
 def test_deploy_success(tmp_path):
     api = DeployAPI()
     d, events = make(tmp_path, api)

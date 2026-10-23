@@ -3,7 +3,7 @@
 ## Status board
 
 - **Current phase:** 8 — audit and tag. Phases 0–7 are done and checked on the real Liara and the real LLM.
-- **Live / working:** demo app `starcoach-shop` on Liara (team «لیارا», small-g2, healthy). The full live scenario passes all 5 checks (`results/live-scenario.json`). 82 offline tests pass. Diagnosis eval 100% on 34 incidents plus the real incident (after F17).
+- **Live / working:** demo app `starcoach-shop` on Liara (team «لیارا», small-g2, healthy). The full live scenario passes all 5 checks (`results/live-scenario.json`). 83 offline tests pass. Diagnosis eval 100% on 34 incidents plus the real incident (after F17).
 
 ### What we need from the user
 
@@ -414,3 +414,24 @@ Not done yet:
 
 Next change idea:
 - The line-by-line audit against requirements.md, then the tag.
+
+### Change 18 — `restart` command; failed builds explained in plain words (checked live) — 2026-10-23
+Phase: 3 and 5, audit gaps
+How to see it: `uv run starcoach restart starcoach-shop`; deploy a folder whose package.json names a missing package
+Proof it works:
+- Real restart: Liara events kill → create → start; `verify` → 5/5 × 200; no false crash.
+- Real failed deploy: FAILED. The first version printed only Docker's generic line. Now it prints "Cause: An npm package in package.json does not exist …: starcoach-package-that-does-not-exist-xyz", the fix, the npm 404 line as evidence, and that the live site is untouched (3/3 × 200). The test uses the real npm lines (F25). 83 tests pass.
+
+Research: 02 §8 said "any non-STDOUT line is a build failure". Real npm errors are on STDOUT, so the whole output must be scanned (F25).
+Questions: none
+Decisions: F25
+
+Shipped:
+- CLI `restart` (rule 9: every capability is a command).
+- `explain_build_failure`: npm 404 / ERESOLVE / missing start, pip, composer, compile errors. ANSI codes are stripped from build lines. The explanation goes to the CLI and to the agent.
+
+Not done yet:
+- none for this change
+
+Next change idea:
+- The audit against requirements.md, then the tag.

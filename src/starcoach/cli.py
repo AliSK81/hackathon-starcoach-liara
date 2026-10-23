@@ -165,8 +165,13 @@ def cmd_deploy(args, settings, log) -> int:
         print(f"✅ Live: {result.url} ({result.seconds}s)")
         return 0
     print(f"❌ Deploy ended in state {result.state or 'unknown'}. {result.fail_reason}")
-    for line in (result.error_lines or result.last_lines)[-10:]:
-        print(f"   {line}")
+    if result.explanation:
+        print(f"   Cause: {result.explanation['cause']}\n   Fix: {result.explanation['fix']}"
+              f"\n   Evidence: {result.explanation['evidence']}")
+    else:
+        for line in (result.error_lines or result.last_lines)[-10:]:
+            print(f"   {line}")
+    print("   The previous version, if there was one, is still live.")
     return 3
 
 
@@ -283,6 +288,16 @@ def cmd_set_env(args, settings, log) -> int:
     r = _client(settings, log).set_env(args.app, args.key, args.value)
     log.write("result", command="set-env", app=args.app, key=args.key, env_count=r["env_count"])
     print(f"Set {args.key}. The app restarts now ({r['env_count']} env vars).")
+    return 0
+
+
+def cmd_restart(args, settings, log) -> int:
+    if not confirm(f"Restart {args.app}? The site is briefly unavailable.", args.yes):
+        print("Not restarted.")
+        return 1
+    _client(settings, log).restart(args.app)
+    log.write("result", command="restart", app=args.app)
+    print(f"Restart of {args.app} sent. Check it with: starcoach verify {args.app}")
     return 0
 
 
@@ -503,6 +518,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("value")
     p.add_argument("--yes", action="store_true")
     p.set_defaults(func=cmd_set_env)
+    p = sub.add_parser("restart", help="restart an app (asks first)")
+    p.add_argument("app")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(func=cmd_restart)
     for name, help_text in (("start", "turn an app on"), ("stop", "turn an app off (type the name to approve)")):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("app")

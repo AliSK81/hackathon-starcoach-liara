@@ -5,6 +5,7 @@ from __future__ import annotations
 import fnmatch
 import io
 import os
+import re
 import tarfile
 import time
 import uuid
@@ -21,6 +22,39 @@ ALWAYS_IGNORE = [".git", ".idea", ".vscode", ".next", ".dockerignore", "*.*~", "
 KEEP = {".env.example"}
 MAX_SOURCE_BYTES = 256 * 1024 * 1024  # client limit in the CLI (src/constants.ts:29)
 FINAL_STATES = {"READY", "FAILED", "UNHEALTHY", "TIMEDOUT", "CANCELED"}
+ANSI = re.compile(r"\x1b\[[0-9;]*m|\[[0-9;]{1,5}m")
+
+# Build-log signatures -> plain cause and fix. npm prints its errors on STDOUT in red, so the whole
+# build output is scanned, not only the error stream (F25).
+BUILD_RULES = [
+    (r"'(?P<pkg>[^'@][^']*?)@[^']*' is not in (?:this|the npm) registry|404 Not Found - GET \S+/(?P<pkg2>[^/\s]+)$",
+     "An npm package in package.json does not exist (or the name is misspelled): {pkg}.",
+     "Fix the package name in package.json, or remove it. If it exists on npmjs.com, set \"mirror\": false in liara.json."),
+    (r"ERESOLVE|could not resolve dependency",
+     "npm cannot resolve the dependency versions (peer dependency conflict).",
+     "Align the versions in package.json, or add an .npmrc with legacy-peer-deps=true."),
+    (r"missing script:? \"?start",
+     "package.json has no start script.", "Add \"start\" to the scripts in package.json."),
+    (r"No matching distribution found for (?P<pkg>\S+)",
+     "A Python package in requirements.txt cannot be installed: {pkg}.",
+     "Fix the name or version in requirements.txt."),
+    (r"Your requirements could not be resolved|composer.*(?:conflict|could not be resolved)",
+     "Composer cannot resolve the PHP dependencies.", "Update composer.lock locally, or delete it and redeploy."),
+    (r"(?:SyntaxError|error TS\d+|Module not found|Failed to compile)",
+     "The build step failed on a code error.", "Run the build locally (npm run build), fix the first error, redeploy."),
+]
+
+
+def explain_build_failure(lines: list[str]) -> dict | None:
+    text = "\n".join(ANSI.sub("", l) for l in lines)
+    for pattern, cause, fix in BUILD_RULES:
+        m = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            groups = {k: v for k, v in m.groupdict().items() if v}
+            pkg = groups.get("pkg") or groups.get("pkg2") or ""
+            evidence = next((l.strip() for l in text.splitlines() if re.search(pattern, l, re.IGNORECASE)), "")
+            return {"cause": cause.format(pkg=pkg), "fix": fix, "evidence": evidence[:200]}
+    return None
 
 
 def ignore_patterns(root: Path) -> list[str]:
@@ -95,6 +129,7 @@ class DeployResult:
     last_lines: list[str] = field(default_factory=list)
     seconds: int = 0
     url: str = ""
+    explanation: dict | None = None
 
     @property
     def ok(self) -> bool:
@@ -147,7 +182,7 @@ class Deployer:
             output = resp.get("buildOutput") or []
             state = (resp.get("release") or {}).get("state", "")
             for item in output:
-                line = str(item.get("line", "")).rstrip()
+                line = ANSI.sub("", str(item.get("line", ""))).rstrip()
                 lines.append(line)
                 if item.get("stream", "STDOUT") != "STDOUT":
                     result.error_lines.append(line)
@@ -165,6 +200,8 @@ class Deployer:
         else:
             result.state = result.state or "TIMEDOUT"
         result.last_lines = lines[-20:]
+        if result.state in ("FAILED", "TIMEDOUT", "UNHEALTHY"):
+            result.explanation = explain_build_failure(lines)
 
 
 def release_status(client: LiaraClient, release_id: str) -> dict:
